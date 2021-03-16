@@ -18,5 +18,10 @@ func main() {
 	if !ok {
 		fmt.Println(":(")
 	}
-	fmt.Printf("%+v", textDeck)
+	pdf, err := BuildPDF(textDeck)
+	if err != nil {
+		fmt.Printf(":( %s", err)
+		return
+	}
+	pdf.WritePdf("out.pdf")
 }
