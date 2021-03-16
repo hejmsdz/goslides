@@ -1,6 +1,7 @@
 package main
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/kjk/notionapi"
@@ -108,6 +109,16 @@ func (sdb SongsDB) FilterSongs(query string) (results []Song) {
 			results = append(results, song)
 		}
 	}
+
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].Number == query {
+			return true
+		}
+		if results[j].Number == query {
+			return false
+		}
+		return results[i].Title < results[j].Title
+	})
 
 	return
 }
