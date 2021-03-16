@@ -1,11 +1,11 @@
 package main
 
 type Deck struct {
-	Items []DeckItem
+	Items []DeckItem `json:"items"`
 }
 
 type DeckItem struct {
-	ID string
+	ID string `json:"id"`
 }
 
 func (d Deck) ToTextSlides(songsDB SongsDB) ([][]string, bool) {
