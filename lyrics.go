@@ -75,7 +75,13 @@ func (sdb *SongsDB) Initialize() error {
 	return nil
 }
 
-func (sdb SongsDB) FilterSongs(query string) (result []Song) {
+func (sdb SongsDB) FilterSongs(query string) (results []Song) {
+	results = make([]Song, 0)
+
+	if len(query) < 3 {
+		return
+	}
+
 	queryLower := strings.ToLower(query)
 
 	for _, song := range sdb.Songs {
@@ -85,7 +91,7 @@ func (sdb SongsDB) FilterSongs(query string) (result []Song) {
 		if strings.Contains(titleLower, queryLower) ||
 			strings.Contains(numberLower, queryLower) ||
 			strings.Contains(tagsLower, queryLower) {
-			result = append(result, song)
+			results = append(results, song)
 		}
 	}
 
