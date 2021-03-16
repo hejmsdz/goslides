@@ -8,8 +8,8 @@ import (
 
 const collectionID = "f56d81ad-0432-4868-b96f-4b9fcee690fa"
 const collectionViewID = "db8fc575-ef3b-4392-9a2f-3a93ef50e64d"
-const propertyKeyNumber = "Numer"
-const propertyKeyTags = "Kategorie"
+const propertyNameNumber = "Numer"
+const propertyNameTags = "Kategorie"
 
 type Song struct {
 	Id     string `json:"id"`
@@ -33,6 +33,19 @@ func extractText(property []*notionapi.TextSpan) string {
 	return property[0].Text
 }
 
+func getColumnKeys(recordMap *notionapi.RecordMap) (propertyKeyNumber, propertyKeyTags string) {
+	collectionDetails := recordMap.Collections[collectionID].Collection
+	for key, column := range collectionDetails.Schema {
+		switch column.Name {
+		case propertyNameNumber:
+			propertyKeyNumber = key
+		case propertyNameTags:
+			propertyKeyTags = key
+		}
+	}
+	return
+}
+
 func (sdb *SongsDB) Initialize() error {
 	sdb.client = &notionapi.Client{}
 	sdb.Songs = make(map[string]Song, 0)
@@ -43,6 +56,7 @@ func (sdb *SongsDB) Initialize() error {
 		return err
 	}
 
+	propertyKeyNumber, propertyKeyTags := getColumnKeys(result.RecordMap)
 	blockMap := result.RecordMap.Blocks
 	pageIDs := result.Result.BlockIDS
 
