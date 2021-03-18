@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -17,6 +19,7 @@ type Song struct {
 	Title  string `json:"title"`
 	Number string `json:"number"`
 	Tags   string `json:"-"`
+	Slug   string `json:"slug"`
 
 	contentBlockIDs []string
 }
@@ -32,6 +35,17 @@ func extractText(property []*notionapi.TextSpan) string {
 		return ""
 	}
 	return property[0].Text
+}
+
+var slugReplacer = strings.NewReplacer("ą", "a", "ć", "c", "ę", "e", "ł", "l", "ń", "n", "ó", "o", "ś", "s", "ź", "z", "ż", "z")
+var nonAlpha, _ = regexp.Compile("[^a-zA-Z0-9\\. ]+")
+
+func slugify(text string) string {
+	text = strings.ToLower(text)
+	text = slugReplacer.Replace(text)
+	text = nonAlpha.ReplaceAllString(text, "")
+
+	return text
 }
 
 func getColumnKeys(recordMap *notionapi.RecordMap) (propertyKeyNumber, propertyKeyTags string) {
@@ -68,12 +82,18 @@ func (sdb *SongsDB) Initialize() error {
 		}
 		pageBlock := page.Block
 
+		title := extractText(pageBlock.GetTitle())
+		number := extractText(pageBlock.GetProperty(propertyKeyNumber))
+		tags := extractText(pageBlock.GetProperty(propertyKeyTags))
+
 		sdb.Songs[pageID] = Song{
-			pageID,
-			extractText(pageBlock.GetTitle()),
-			extractText(pageBlock.GetProperty(propertyKeyNumber)),
-			extractText(pageBlock.GetProperty(propertyKeyTags)),
-			pageBlock.ContentIDs,
+			Id:     pageID,
+			Title:  title,
+			Number: number,
+			Tags:   tags,
+			Slug:   fmt.Sprintf("%s|%s|%s", slugify(title), number, slugify(tags)),
+
+			contentBlockIDs: pageBlock.ContentIDs,
 		}
 
 		for _, contentID := range pageBlock.ContentIDs {
@@ -97,15 +117,10 @@ func (sdb SongsDB) FilterSongs(query string) (results []Song) {
 		return
 	}
 
-	queryLower := strings.ToLower(query)
+	querySlug := slugify(query)
 
 	for _, song := range sdb.Songs {
-		titleLower := strings.ToLower(song.Title)
-		numberLower := strings.ToLower(song.Number)
-		tagsLower := strings.ToLower(song.Tags)
-		if strings.Contains(titleLower, queryLower) ||
-			strings.Contains(numberLower, queryLower) ||
-			strings.Contains(tagsLower, queryLower) {
+		if strings.Contains(song.Slug, querySlug) {
 			results = append(results, song)
 		}
 	}
