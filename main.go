@@ -9,9 +9,12 @@ func main() {
 	songsDB := SongsDB{}
 	songsDB.Initialize()
 
+	liturgyDB := LiturgyDB{}
+	liturgyDB.Initialize()
+
 	port := os.Getenv("PORT")
-  if port == "" {
-    port = "8000"
-  }
-  runServer(songsDB, fmt.Sprintf(":%s", port))
+	if port == "" {
+		port = "8000"
+	}
+	runServer(songsDB, liturgyDB, fmt.Sprintf(":%s", port))
 }

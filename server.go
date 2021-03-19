@@ -31,7 +31,24 @@ func getSongs(w http.ResponseWriter, req *http.Request, songsDB SongsDB) {
 	w.Write(resp)
 }
 
-func postDeck(w http.ResponseWriter, req *http.Request, songsDB SongsDB) {
+func getLiturgy(w http.ResponseWriter, req *http.Request, liturgyDB LiturgyDB) {
+	date := req.URL.Query().Get("date")
+	liturgy, ok := liturgyDB.GetDay(date)
+	if !ok {
+		http.Error(w, "liturgy error", http.StatusInternalServerError)
+		return
+	}
+	resp, err := json.Marshal(liturgy)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(resp)
+}
+
+func postDeck(w http.ResponseWriter, req *http.Request, songsDB SongsDB, liturgyDB LiturgyDB) {
 	var deck Deck
 	err := json.NewDecoder(req.Body).Decode(&deck)
 	if err != nil {
@@ -39,7 +56,7 @@ func postDeck(w http.ResponseWriter, req *http.Request, songsDB SongsDB) {
 		return
 	}
 
-	textDeck, ok := deck.ToTextSlides(songsDB)
+	textDeck, ok := deck.ToTextSlides(songsDB, liturgyDB)
 	if !ok {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -64,12 +81,15 @@ func postDeck(w http.ResponseWriter, req *http.Request, songsDB SongsDB) {
 	w.Write(resp)
 }
 
-func runServer(songsDB SongsDB, addr string) {
+func runServer(songsDB SongsDB, liturgyDB LiturgyDB, addr string) {
 	http.HandleFunc("/v2/songs", func(w http.ResponseWriter, req *http.Request) {
 		getSongs(w, req, songsDB)
 	})
+	http.HandleFunc("/v2/liturgy", func(w http.ResponseWriter, req *http.Request) {
+		getLiturgy(w, req, liturgyDB)
+	})
 	http.HandleFunc("/v2/deck", func(w http.ResponseWriter, req *http.Request) {
-		postDeck(w, req, songsDB)
+		postDeck(w, req, songsDB, liturgyDB)
 	})
 	http.Handle("/public/", http.StripPrefix("/public/", http.FileServer(http.Dir("public"))))
 	log.Printf("starting server on %s", addr)
