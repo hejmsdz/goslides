@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/kjk/notionapi"
@@ -21,6 +22,8 @@ type Song struct {
 	Tags   string `json:"-"`
 	Slug   string `json:"slug"`
 
+	numberChapter   int
+	numberItem      int
 	contentBlockIDs []string
 }
 
@@ -86,6 +89,13 @@ func (sdb *SongsDB) Initialize() error {
 		number := extractText(pageBlock.GetProperty(propertyKeyNumber))
 		tags := extractText(pageBlock.GetProperty(propertyKeyTags))
 
+		numberSplit := strings.Split(number, ".")
+		numberChapter, numberItem := -1, -1
+		if len(numberSplit) == 2 {
+			numberChapter, _ = strconv.Atoi(numberSplit[0])
+			numberItem, _ = strconv.Atoi(numberSplit[1])
+		}
+
 		sdb.Songs[pageID] = Song{
 			Id:     pageID,
 			Title:  title,
@@ -93,6 +103,8 @@ func (sdb *SongsDB) Initialize() error {
 			Tags:   tags,
 			Slug:   fmt.Sprintf("%s|%s|%s", slugify(title), number, slugify(tags)),
 
+			numberChapter:   numberChapter,
+			numberItem:      numberItem,
 			contentBlockIDs: pageBlock.ContentIDs,
 		}
 
@@ -110,6 +122,8 @@ func (sdb *SongsDB) Initialize() error {
 	return nil
 }
 
+var numberQueryRegexp, _ = regexp.Compile("^\\d")
+
 func (sdb SongsDB) FilterSongs(query string) (results []Song) {
 	results = make([]Song, 0)
 
@@ -125,12 +139,16 @@ func (sdb SongsDB) FilterSongs(query string) (results []Song) {
 		}
 	}
 
+	isNumberQuery := numberQueryRegexp.Match([]byte(query))
 	sort.Slice(results, func(i, j int) bool {
-		if results[i].Number == query {
-			return true
-		}
-		if results[j].Number == query {
-			return false
+		if isNumberQuery {
+			iChapter, jChapter := results[i].numberChapter, results[j].numberChapter
+			iItem, jItem := results[i].numberItem, results[j].numberItem
+
+			if iChapter == jChapter {
+				return iItem < jItem
+			}
+			return iChapter < jChapter
 		}
 		return results[i].Title < results[j].Title
 	})
