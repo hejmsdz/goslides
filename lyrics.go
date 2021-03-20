@@ -14,13 +14,15 @@ const collectionID = "f56d81ad-0432-4868-b96f-4b9fcee690fa"
 const collectionViewID = "db8fc575-ef3b-4392-9a2f-3a93ef50e64d"
 const propertyNameNumber = "Numer"
 const propertyNameTags = "Kategorie"
+const ordinaryTag = "części stałe"
 
 type Song struct {
-	Id     string `json:"id"`
-	Title  string `json:"title"`
-	Number string `json:"number"`
-	Tags   string `json:"-"`
-	Slug   string `json:"slug"`
+	Id         string `json:"id"`
+	Title      string `json:"title"`
+	Number     string `json:"number"`
+	Tags       string `json:"-"`
+	Slug       string `json:"slug"`
+	IsOrdinary bool   `json:"isOrdinary,omitempty"`
 
 	numberChapter   int
 	numberItem      int
@@ -97,11 +99,12 @@ func (sdb *SongsDB) Initialize(authToken string) error {
 		}
 
 		sdb.Songs[pageID] = Song{
-			Id:     pageID,
-			Title:  title,
-			Number: number,
-			Tags:   tags,
-			Slug:   fmt.Sprintf("%s|%s|%s", slugify(title), number, slugify(tags)),
+			Id:         pageID,
+			Title:      title,
+			Number:     number,
+			Tags:       tags,
+			Slug:       fmt.Sprintf("%s|%s|%s", slugify(title), number, slugify(tags)),
+			IsOrdinary: strings.Contains(tags, ordinaryTag),
 
 			numberChapter:   numberChapter,
 			numberItem:      numberItem,
