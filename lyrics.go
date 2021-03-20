@@ -64,8 +64,8 @@ func getColumnKeys(recordMap *notionapi.RecordMap) (propertyKeyNumber, propertyK
 	return
 }
 
-func (sdb *SongsDB) Initialize() error {
-	sdb.client = &notionapi.Client{}
+func (sdb *SongsDB) Initialize(authToken string) error {
+	sdb.client = &notionapi.Client{AuthToken: authToken}
 	sdb.Songs = make(map[string]Song, 0)
 	sdb.LyricsBlocks = make(map[string]string, 0)
 

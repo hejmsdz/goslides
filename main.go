@@ -7,7 +7,7 @@ import (
 
 func main() {
 	songsDB := SongsDB{}
-	songsDB.Initialize()
+	songsDB.Initialize(os.Getenv("NOTION_TOKEN"))
 
 	liturgyDB := LiturgyDB{}
 	liturgyDB.Initialize()
