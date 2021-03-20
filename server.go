@@ -19,6 +19,12 @@ func getPublicURL(req *http.Request, fileName string) string {
 	return fmt.Sprintf("%s://%s/public/%s", scheme, req.Host, fileName)
 }
 
+func allowCors(w *http.ResponseWriter, methods string) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding")
+	(*w).Header().Set("Access-Control-Allow-Methods", methods)
+}
+
 func getSongs(w http.ResponseWriter, req *http.Request, songsDB SongsDB) {
 	query := req.URL.Query().Get("query")
 	resp, err := json.Marshal(songsDB.FilterSongs(query))
@@ -94,15 +100,22 @@ func postDeck(w http.ResponseWriter, req *http.Request, songsDB SongsDB, liturgy
 
 func runServer(songsDB SongsDB, liturgyDB LiturgyDB, manual Manual, addr string) {
 	http.HandleFunc("/v2/songs", func(w http.ResponseWriter, req *http.Request) {
+		allowCors(&w, "OPTIONS, GET")
 		getSongs(w, req, songsDB)
 	})
 	http.HandleFunc("/v2/liturgy", func(w http.ResponseWriter, req *http.Request) {
+		allowCors(&w, "OPTIONS, GET")
 		getLiturgy(w, req, liturgyDB)
 	})
 	http.HandleFunc("/v2/manual", func(w http.ResponseWriter, req *http.Request) {
+		allowCors(&w, "OPTIONS, GET")
 		getManual(w, req, manual)
 	})
 	http.HandleFunc("/v2/deck", func(w http.ResponseWriter, req *http.Request) {
+		allowCors(&w, "OPTIONS, POST")
+		if (*req).Method == "OPTIONS" {
+			return
+		}
 		postDeck(w, req, songsDB, liturgyDB)
 	})
 	http.Handle("/public/", http.StripPrefix("/public/", http.FileServer(http.Dir("public"))))
