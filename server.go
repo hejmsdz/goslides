@@ -48,6 +48,17 @@ func getLiturgy(w http.ResponseWriter, req *http.Request, liturgyDB LiturgyDB) {
 	w.Write(resp)
 }
 
+func getManual(w http.ResponseWriter, req *http.Request, manual Manual) {
+	resp, err := json.Marshal(manual)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(resp)
+}
+
 func postDeck(w http.ResponseWriter, req *http.Request, songsDB SongsDB, liturgyDB LiturgyDB) {
 	var deck Deck
 	err := json.NewDecoder(req.Body).Decode(&deck)
@@ -81,12 +92,15 @@ func postDeck(w http.ResponseWriter, req *http.Request, songsDB SongsDB, liturgy
 	w.Write(resp)
 }
 
-func runServer(songsDB SongsDB, liturgyDB LiturgyDB, addr string) {
+func runServer(songsDB SongsDB, liturgyDB LiturgyDB, manual Manual, addr string) {
 	http.HandleFunc("/v2/songs", func(w http.ResponseWriter, req *http.Request) {
 		getSongs(w, req, songsDB)
 	})
 	http.HandleFunc("/v2/liturgy", func(w http.ResponseWriter, req *http.Request) {
 		getLiturgy(w, req, liturgyDB)
+	})
+	http.HandleFunc("/v2/manual", func(w http.ResponseWriter, req *http.Request) {
+		getManual(w, req, manual)
 	})
 	http.HandleFunc("/v2/deck", func(w http.ResponseWriter, req *http.Request) {
 		postDeck(w, req, songsDB, liturgyDB)

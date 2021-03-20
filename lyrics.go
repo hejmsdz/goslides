@@ -35,11 +35,17 @@ type SongsDB struct {
 	LyricsBlocks map[string]string
 }
 
-func extractText(property []*notionapi.TextSpan) string {
-	if len(property) == 0 || property[0] == nil {
-		return ""
+func extractText(property []*notionapi.TextSpan) (text string) {
+	text = ""
+	if len(property) == 0 {
+		return
 	}
-	return property[0].Text
+
+	for _, span := range property {
+		text += span.Text
+	}
+
+	return
 }
 
 var slugReplacer = strings.NewReplacer("ą", "a", "ć", "c", "ę", "e", "ł", "l", "ń", "n", "ó", "o", "ś", "s", "ź", "z", "ż", "z")

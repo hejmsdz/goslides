@@ -6,6 +6,8 @@ import (
 )
 
 func main() {
+	manual, _ := GetManual(os.Getenv("NOTION_TOKEN"))
+
 	songsDB := SongsDB{}
 	songsDB.Initialize(os.Getenv("NOTION_TOKEN"))
 
@@ -16,5 +18,5 @@ func main() {
 	if port == "" {
 		port = "8000"
 	}
-	runServer(songsDB, liturgyDB, fmt.Sprintf(":%s", port))
+	runServer(songsDB, liturgyDB, manual, fmt.Sprintf(":%s", port))
 }
