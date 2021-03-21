@@ -92,7 +92,7 @@ func getAcclamation(doc *html.Node) (string, string, bool) {
 	return alleluia, verse, true
 }
 
-var dateRegexp, _ = regexp.Compile("^20\\d\\d-[0-1]\\d-[0-3]\\d$")
+var dateRegexp = regexp.MustCompile("^20\\d\\d-[0-1]\\d-[0-3]\\d$")
 
 func GetLiturgy(date string) (Liturgy, bool) {
 	liturgy := Liturgy{}

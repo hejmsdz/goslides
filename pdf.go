@@ -8,9 +8,12 @@ import (
 
 const pageWidth float64 = 768
 const pageHeight float64 = 576
+const margin float64 = 50
 const fontSize int = 36
 const lineSpacing float64 = 1.3
 const font string = "./fonts/source-sans-pro.ttf"
+
+const contentWidth = pageWidth - 2*margin
 
 func createNewPDF() (*gopdf.GoPdf, error) {
 	pageSize := gopdf.Rect{W: pageWidth, H: pageHeight}
@@ -58,6 +61,7 @@ func writeCenteredLine(pdf *gopdf.GoPdf, text string) error {
 
 func writeCenteredParagraph(pdf *gopdf.GoPdf, text string) error {
 	lines := strings.Split(text, "\n")
+	lines = BreakLongLines(lines, pdf.MeasureTextWidth, contentWidth)
 	numLines := len(lines)
 	lineHeight := float64(fontSize) * lineSpacing
 	paragraphHeight := float64(numLines) * lineHeight

@@ -49,7 +49,7 @@ func extractText(property []*notionapi.TextSpan) (text string) {
 }
 
 var slugReplacer = strings.NewReplacer("ą", "a", "ć", "c", "ę", "e", "ł", "l", "ń", "n", "ó", "o", "ś", "s", "ź", "z", "ż", "z")
-var nonAlpha, _ = regexp.Compile("[^a-zA-Z0-9\\. ]+")
+var nonAlpha = regexp.MustCompile("[^a-zA-Z0-9\\. ]+")
 
 func slugify(text string) string {
 	text = strings.ToLower(text)
@@ -131,7 +131,7 @@ func (sdb *SongsDB) Initialize(authToken string) error {
 	return nil
 }
 
-var numberQueryRegexp, _ = regexp.Compile("^\\d")
+var numberQueryRegexp = regexp.MustCompile("^\\d")
 
 func (sdb SongsDB) FilterSongs(query string) (results []Song) {
 	results = make([]Song, 0)
