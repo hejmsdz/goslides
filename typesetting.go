@@ -1,26 +1,41 @@
 package main
 
 import (
-	"regexp"
 	"strings"
 )
 
 type Measurer func(string) (float64, error)
-
-var shortWordsRegexp = regexp.MustCompile(" ([\\p{L}~]{1,3}) ")
-var finalWordRegexp = regexp.MustCompile(" (\\p{L}+[[:punct:]]?)$")
 
 func BreakLongLines(lines []string, measure Measurer, contentWidth float64) []string {
 	result := make([]string, 0)
 
 	for _, line := range lines {
 		line = strings.Trim(line, " ")
-		line = shortWordsRegexp.ReplaceAllString(line, " $1~")
-		line = finalWordRegexp.ReplaceAllString(line, "~$1")
+		line = preventAwkwardLineBreaks(line)
 
 		for _, wordSplit := range breakOnSpaces(line, measure, contentWidth) {
 			wordSplit = strings.ReplaceAll(wordSplit, "~", " ")
 			result = append(result, wordSplit)
+		}
+	}
+
+	return result
+}
+
+func preventAwkwardLineBreaks(text string) string {
+	result := ""
+	words := strings.Split(text, " ")
+	lastIndex := len(words) - 1
+	penultimateIndex := lastIndex - 1
+
+	for i, word := range words {
+		result += word
+		if i < lastIndex {
+			if len(word) <= 3 || i == penultimateIndex {
+				result += "~"
+			} else {
+				result += " "
+			}
 		}
 	}
 
