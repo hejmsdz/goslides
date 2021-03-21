@@ -199,7 +199,9 @@ func (sdb SongsDB) GetLyrics(songID string) ([]string, bool) {
 	for _, blockID := range song.contentBlockIDs {
 		verse, ok := sdb.LyricsBlocks[blockID]
 		hasAllVerses = hasAllVerses && ok
-		lyrics = append(lyrics, verse)
+		if verse != "" {
+			lyrics = append(lyrics, verse)
+		}
 	}
 
 	return lyrics, hasAllVerses
