@@ -73,9 +73,14 @@ func postDeck(w http.ResponseWriter, req *http.Request, songsDB SongsDB, liturgy
 		return
 	}
 
+	if !deck.IsValid() {
+		http.Error(w, "Invalid input", http.StatusUnprocessableEntity)
+		return
+	}
+
 	textDeck, ok := deck.ToTextSlides(songsDB, liturgyDB)
 	if !ok {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to get lyrics", http.StatusInternalServerError)
 		return
 	}
 	pdf, err := BuildPDF(textDeck)
@@ -84,7 +89,7 @@ func postDeck(w http.ResponseWriter, req *http.Request, songsDB SongsDB, liturgy
 		return
 	}
 
-	pdfName := "out.pdf"
+	pdfName := deck.Date + ".pdf"
 	SaveTemporaryPDF(pdf, pdfName)
 
 	deckResult := DeckResult{getPublicURL(req, pdfName)}

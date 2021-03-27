@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"regexp"
 )
 
 type Deck struct {
@@ -12,6 +13,16 @@ type Deck struct {
 type DeckItem struct {
 	ID   string `json:"id"`
 	Type string `json:"type"`
+}
+
+var dateRegexp = regexp.MustCompile("^20\\d\\d-[0-1]\\d-[0-3]\\d$")
+
+func (d Deck) IsValid() bool {
+	if !dateRegexp.MatchString(d.Date) {
+		return false
+	}
+
+	return true
 }
 
 func (d Deck) ToTextSlides(songsDB SongsDB, liturgyDB LiturgyDB) ([][]string, bool) {

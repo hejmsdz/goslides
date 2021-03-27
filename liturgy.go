@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"regexp"
 
 	"github.com/andybalholm/cascadia"
 	"golang.org/x/net/html"
@@ -92,14 +91,8 @@ func getAcclamation(doc *html.Node) (string, string, bool) {
 	return alleluia, verse, true
 }
 
-var dateRegexp = regexp.MustCompile("^20\\d\\d-[0-1]\\d-[0-3]\\d$")
-
 func GetLiturgy(date string) (Liturgy, bool) {
 	liturgy := Liturgy{}
-
-	if !dateRegexp.Match([]byte(date)) {
-		return liturgy, false
-	}
 
 	url := fmt.Sprintf("https://niezbednik.niedziela.pl/liturgia/%s", date)
 	res, err := http.Get(url)
