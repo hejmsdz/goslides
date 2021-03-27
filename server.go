@@ -109,10 +109,20 @@ func getBootstrap(w http.ResponseWriter, req *http.Request) {
 	w.Write(resp)
 }
 
-func runServer(songsDB SongsDB, liturgyDB LiturgyDB, manual Manual, addr string) {
+func postReload(w http.ResponseWriter, req *http.Request, songsDB *SongsDB) {
+	err := songsDB.Initialize(NOTION_TOKEN)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func runServer(songsDB *SongsDB, liturgyDB LiturgyDB, manual Manual, addr string) {
 	http.HandleFunc("/v2/songs", func(w http.ResponseWriter, req *http.Request) {
 		allowCors(&w, "OPTIONS, GET")
-		getSongs(w, req, songsDB)
+		getSongs(w, req, *songsDB)
 	})
 	http.HandleFunc("/v2/liturgy", func(w http.ResponseWriter, req *http.Request) {
 		allowCors(&w, "OPTIONS, GET")
@@ -127,11 +137,15 @@ func runServer(songsDB SongsDB, liturgyDB LiturgyDB, manual Manual, addr string)
 		if (*req).Method == "OPTIONS" {
 			return
 		}
-		postDeck(w, req, songsDB, liturgyDB)
+		postDeck(w, req, *songsDB, liturgyDB)
 	})
 	http.HandleFunc("/v2/bootstrap", func(w http.ResponseWriter, req *http.Request) {
 		allowCors(&w, "OPTIONS, GET")
 		getBootstrap(w, req)
+	})
+	http.HandleFunc("/v2/reload", func(w http.ResponseWriter, req *http.Request) {
+		allowCors(&w, "OPTIONS, POST")
+		postReload(w, req, songsDB)
 	})
 	http.Handle("/public/", http.StripPrefix("/public/", http.FileServer(http.Dir("public"))))
 	log.Printf("starting server on %s", addr)
