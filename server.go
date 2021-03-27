@@ -98,6 +98,17 @@ func postDeck(w http.ResponseWriter, req *http.Request, songsDB SongsDB, liturgy
 	w.Write(resp)
 }
 
+func getBootstrap(w http.ResponseWriter, req *http.Request) {
+	resp, err := json.Marshal(bootstrap)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(resp)
+}
+
 func runServer(songsDB SongsDB, liturgyDB LiturgyDB, manual Manual, addr string) {
 	http.HandleFunc("/v2/songs", func(w http.ResponseWriter, req *http.Request) {
 		allowCors(&w, "OPTIONS, GET")
@@ -117,6 +128,10 @@ func runServer(songsDB SongsDB, liturgyDB LiturgyDB, manual Manual, addr string)
 			return
 		}
 		postDeck(w, req, songsDB, liturgyDB)
+	})
+	http.HandleFunc("/v2/bootstrap", func(w http.ResponseWriter, req *http.Request) {
+		allowCors(&w, "OPTIONS, GET")
+		getBootstrap(w, req)
 	})
 	http.Handle("/public/", http.StripPrefix("/public/", http.FileServer(http.Dir("public"))))
 	log.Printf("starting server on %s", addr)
