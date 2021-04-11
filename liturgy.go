@@ -67,7 +67,7 @@ func getAcclamation(doc *html.Node) (string, string, bool) {
 	}
 
 	alleluiaSelector, _ := cascadia.Parse(fmt.Sprintf("%s h4 em", tabId))
-	verseSelector, _ := cascadia.Parse(fmt.Sprintf("%s p", tabId))
+	verseSelector, _ := cascadia.Parse(fmt.Sprintf("%s h4 ~ p", tabId))
 	alleluiaNode := cascadia.Query(doc, alleluiaSelector)
 	verseNodes := cascadia.QueryAll(doc, verseSelector)
 	if alleluiaNode == nil || len(verseNodes) == 0 {
