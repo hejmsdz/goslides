@@ -12,10 +12,7 @@ type DeckResult struct {
 }
 
 func getPublicURL(req *http.Request, fileName string) string {
-	scheme := "http"
-	if req.TLS != nil {
-		scheme = "https"
-	}
+	scheme := "https"
 	return fmt.Sprintf("%s://%s/public/%s", scheme, req.Host, fileName)
 }
 
