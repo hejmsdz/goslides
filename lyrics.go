@@ -1,17 +1,18 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/kjk/notionapi"
+	"github.com/jomei/notionapi"
 )
 
-const collectionID = "f56d81ad-0432-4868-b96f-4b9fcee690fa"
-const collectionViewID = "db8fc575-ef3b-4392-9a2f-3a93ef50e64d"
+const databaseId = "26c6e5f0367243e1870b1ee51d742632"
+const propertyNameTitle = "Tytuł"
 const propertyNameNumber = "Numer"
 const propertyNameTags = "Kategorie"
 const ordinaryTag = "części stałe"
@@ -24,25 +25,24 @@ type Song struct {
 	Slug       string `json:"slug"`
 	IsOrdinary bool   `json:"isOrdinary,omitempty"`
 
-	numberChapter   int
-	numberItem      int
-	contentBlockIDs []string
+	numberChapter int
+	numberItem    int
 }
 
 type SongsDB struct {
 	client       *notionapi.Client
 	Songs        map[string]Song
-	LyricsBlocks map[string]string
+	LyricsBlocks map[string][]string
 }
 
-func extractText(property []*notionapi.TextSpan) (text string) {
+func extractText(property []notionapi.RichText) (text string) {
 	text = ""
 	if len(property) == 0 {
 		return
 	}
 
 	for _, span := range property {
-		text += span.Text
+		text += span.PlainText
 	}
 
 	return
@@ -59,76 +59,62 @@ func slugify(text string) string {
 	return text
 }
 
-func getColumnKeys(recordMap *notionapi.RecordMap) (propertyKeyNumber, propertyKeyTags string) {
-	collectionDetails := recordMap.Collections[collectionID].Collection
-	for key, column := range collectionDetails.Schema {
-		switch column.Name {
-		case propertyNameNumber:
-			propertyKeyNumber = key
-		case propertyNameTags:
-			propertyKeyTags = key
-		}
-	}
-	return
-}
-
 func (sdb *SongsDB) Initialize(authToken string) error {
-	sdb.client = &notionapi.Client{AuthToken: authToken}
+	sdb.client = notionapi.NewClient(notionapi.Token(authToken))
 	sdb.Songs = make(map[string]Song, 0)
-	sdb.LyricsBlocks = make(map[string]string, 0)
+	sdb.LyricsBlocks = make(map[string][]string, 0)
 
-	result, err := sdb.client.QueryCollection(collectionID, collectionViewID, nil, nil)
-	if err != nil {
-		return err
+	query := notionapi.DatabaseQueryRequest{
+		PropertyFilter: nil,
+		CompoundFilter: nil,
+		Sorts:          make([]notionapi.SortObject, 0),
+		StartCursor:    notionapi.Cursor(""),
+		PageSize:       100,
 	}
 
-	propertyKeyNumber, propertyKeyTags := getColumnKeys(result.RecordMap)
-	blockMap := result.RecordMap.Blocks
-	pageIDs := result.Result.BlockIDS
-
-	for _, pageID := range pageIDs {
-		page, ok := blockMap[pageID]
-		if !ok {
-			continue
-		}
-		pageBlock := page.Block
-
-		title := extractText(pageBlock.GetTitle())
-		number := extractText(pageBlock.GetProperty(propertyKeyNumber))
-		tags := extractText(pageBlock.GetProperty(propertyKeyTags))
-
-		numberSplit := strings.Split(number, ".")
-		numberChapter, numberItem := -1, -1
-		if len(numberSplit) == 2 {
-			numberChapter, _ = strconv.Atoi(numberSplit[0])
-			numberItem, _ = strconv.Atoi(numberSplit[1])
+	for {
+		result, err := sdb.client.Database.Query(context.Background(), databaseId, &query)
+		if err != nil {
+			return err
 		}
 
-		sdb.Songs[pageID] = Song{
-			Id:         pageID,
-			Title:      title,
-			Number:     number,
-			Tags:       tags,
-			Slug:       fmt.Sprintf("%s|%s|%s", slugify(title), number, slugify(tags)),
-			IsOrdinary: strings.Contains(tags, ordinaryTag),
+		for _, song := range result.Results {
+			pageID := song.ID.String()
+			title := extractText(song.Properties[propertyNameTitle].(*notionapi.TitleProperty).Title)
+			number := extractText(song.Properties[propertyNameNumber].(*notionapi.RichTextProperty).RichText)
+			tags := song.Properties[propertyNameTags].(*notionapi.MultiSelectProperty)
+			joinedTags := ""
 
-			numberChapter:   numberChapter,
-			numberItem:      numberItem,
-			contentBlockIDs: pageBlock.ContentIDs,
-		}
-
-		for _, contentID := range pageBlock.ContentIDs {
-			content, ok := blockMap[contentID]
-			if !ok {
-				continue
+			for _, tag := range tags.MultiSelect {
+				joinedTags += tag.Name + " "
 			}
-			contentBlock := content.Block
 
-			sdb.LyricsBlocks[contentID] = extractText(contentBlock.GetTitle())
+			numberSplit := strings.Split(number, ".")
+			numberChapter, numberItem := -1, -1
+			if len(numberSplit) == 2 {
+				numberChapter, _ = strconv.Atoi(numberSplit[0])
+				numberItem, _ = strconv.Atoi(numberSplit[1])
+			}
+
+			sdb.Songs[pageID] = Song{
+				Id:         pageID,
+				Title:      title,
+				Number:     number,
+				Tags:       joinedTags,
+				Slug:       fmt.Sprintf("%s|%s|%s", slugify(title), number, slugify(joinedTags)),
+				IsOrdinary: strings.Contains(joinedTags, ordinaryTag),
+
+				numberChapter: numberChapter,
+				numberItem:    numberItem,
+			}
+		}
+
+		if result.HasMore {
+			query.StartCursor = result.NextCursor
+		} else {
+			return nil
 		}
 	}
-
-	return nil
 }
 
 var numberQueryRegexp = regexp.MustCompile("^\\d")
@@ -166,39 +152,35 @@ func (sdb SongsDB) FilterSongs(query string) (results []Song) {
 }
 
 func (sdb SongsDB) LoadMissingVerses(songIDs []string) error {
-	missingBlocks := make([]notionapi.RecordRequest, 0)
-
+	pagination := notionapi.Pagination{
+		StartCursor: "",
+		PageSize:    100,
+	}
 	for _, songID := range songIDs {
-		song := sdb.Songs[songID]
-
-		for _, blockID := range song.contentBlockIDs {
-			if _, ok := sdb.LyricsBlocks[blockID]; !ok {
-				missingBlocks = append(missingBlocks, notionapi.RecordRequest{Table: "block", ID: blockID})
-			}
+		if _, ok := sdb.LyricsBlocks[songID]; ok {
+			continue
 		}
-	}
+		response, _ := sdb.client.Block.GetChildren(context.Background(), notionapi.BlockID(songID), &pagination)
+		lyrics := make([]string, 0)
 
-	res, err := sdb.client.GetRecordValues(missingBlocks)
-	if err != nil {
-		return err
-	}
-	for _, record := range res.Results {
-		contentBlock := record.Block
-		value := extractText(contentBlock.GetTitle())
-		sdb.LyricsBlocks[record.ID] = value
+		for _, block := range response.Results {
+			if block.GetType() != "paragraph" {
+				continue
+			}
+			lyricsBlock := block.(*notionapi.ParagraphBlock)
+			lyrics = append(lyrics, extractText(lyricsBlock.Paragraph.Text))
+		}
+		sdb.LyricsBlocks[songID] = lyrics
 	}
 
 	return nil
 }
 
 func (sdb SongsDB) GetLyrics(songID string) ([]string, bool) {
-	song := sdb.Songs[songID]
 	hasAllVerses := true
 
 	lyrics := make([]string, 0)
-	for _, blockID := range song.contentBlockIDs {
-		verse, ok := sdb.LyricsBlocks[blockID]
-		hasAllVerses = hasAllVerses && ok
+	for _, verse := range sdb.LyricsBlocks[songID] {
 		if verse != "" {
 			lyrics = append(lyrics, verse)
 		}

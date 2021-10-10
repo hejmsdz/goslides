@@ -13,6 +13,19 @@ type Manual struct {
 
 const manualPageID = "e831bd736718447e8177ade7435337cb"
 
+func extractTextKjk(property []*notionapi.TextSpan) (text string) {
+	text = ""
+	if len(property) == 0 {
+		return
+	}
+
+	for _, span := range property {
+		text += span.Text
+	}
+
+	return
+}
+
 func GetManual(authToken string) (Manual, bool) {
 	m := Manual{make([]string, 0), ""}
 	client := &notionapi.Client{AuthToken: authToken}
@@ -25,7 +38,7 @@ func GetManual(authToken string) (Manual, bool) {
 	page.ForEachBlock(func(block *notionapi.Block) {
 		switch block.Type {
 		case notionapi.BlockNumberedList:
-			m.Steps = append(m.Steps, extractText(block.GetTitle()))
+			m.Steps = append(m.Steps, extractTextKjk(block.GetTitle()))
 		case notionapi.BlockImage:
 			m.Image = fmt.Sprintf("%s?table=block&id=%s", block.ImageURL, block.ID)
 		}
