@@ -11,8 +11,9 @@ type Deck struct {
 }
 
 type DeckItem struct {
-	ID   string `json:"id"`
-	Type string `json:"type"`
+	ID       string   `json:"id"`
+	Type     string   `json:"type"`
+	Contents []string `json:"contents"`
 }
 
 var dateRegexp = regexp.MustCompile("^20\\d\\d-[0-1]\\d-[0-3]\\d$")
@@ -60,6 +61,8 @@ func (d Deck) ToTextSlides(songsDB SongsDB, liturgyDB LiturgyDB) ([][]string, bo
 				liturgy.AcclamationVerse,
 				liturgy.Acclamation)
 			slides = append(slides, []string{fullAcclamation})
+		} else if item.Contents != nil && len(item.Contents) > 0 {
+			slides = append(slides, item.Contents)
 		}
 	}
 
