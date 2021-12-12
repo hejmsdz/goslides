@@ -101,6 +101,7 @@ func postDeck(w http.ResponseWriter, req *http.Request, songsDB SongsDB, liturgy
 }
 
 func getBootstrap(w http.ResponseWriter, req *http.Request) {
+	CheckCurrentVersion()
 	resp, err := json.Marshal(bootstrap)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
