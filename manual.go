@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fmt"
+	"context"
 
-	"github.com/kjk/notionapi"
+	"github.com/jomei/notionapi"
 )
 
 type Manual struct {
@@ -13,36 +13,29 @@ type Manual struct {
 
 const manualPageID = "e831bd736718447e8177ade7435337cb"
 
-func extractTextKjk(property []*notionapi.TextSpan) (text string) {
-	text = ""
-	if len(property) == 0 {
-		return
-	}
-
-	for _, span := range property {
-		text += span.Text
-	}
-
-	return
-}
-
 func GetManual(authToken string) (Manual, bool) {
 	m := Manual{make([]string, 0), ""}
-	client := &notionapi.Client{AuthToken: authToken}
-	page, err := client.DownloadPage(manualPageID)
+	client := notionapi.NewClient(notionapi.Token(authToken))
+	pagination := notionapi.Pagination{
+		StartCursor: "",
+		PageSize:    100,
+	}
+	blocks, err := client.Block.GetChildren(context.Background(), manualPageID, &pagination)
 
 	if err != nil {
 		return m, false
 	}
 
-	page.ForEachBlock(func(block *notionapi.Block) {
-		switch block.Type {
-		case notionapi.BlockNumberedList:
-			m.Steps = append(m.Steps, extractTextKjk(block.GetTitle()))
-		case notionapi.BlockImage:
-			m.Image = fmt.Sprintf("%s?table=block&id=%s", block.ImageURL, block.ID)
+	for _, block := range blocks.Results {
+		switch block.GetType() {
+		case notionapi.BlockTypeNumberedListItem:
+			itemBlock := block.(*notionapi.NumberedListItemBlock)
+			m.Steps = append(m.Steps, extractText(itemBlock.NumberedListItem.Text))
+		case notionapi.BlockTypeImage:
+			imageBlock := block.(*notionapi.ImageBlock)
+			m.Image = imageBlock.Image.File.URL
 		}
-	})
+	}
 
 	return m, true
 }
