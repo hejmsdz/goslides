@@ -10,6 +10,7 @@ const pageWidth float64 = 768
 const pageHeight float64 = 576
 const margin float64 = 50
 const fontSize int = 36
+const hintFontSize int = 24
 const lineSpacing float64 = 1.3
 const font string = "./fonts/source-sans-pro.ttf"
 
@@ -25,8 +26,6 @@ func createNewPDF() (*gopdf.GoPdf, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	pdf.SetFont("default", "", fontSize)
 
 	addPage(&pdf)
 
@@ -46,16 +45,17 @@ func addPage(pdf *gopdf.GoPdf) {
 
 	pdf.SetFillColor(0, 0, 0)
 	pdf.RectFromUpperLeftWithStyle(0, 0, pageWidth, pageHeight, "FD")
-	pdf.SetFillColor(255, 255, 255)
 }
 
 func writeCenteredLine(pdf *gopdf.GoPdf, text string) error {
+	pdf.SetFont("default", "", fontSize)
 	textWidth, err := pdf.MeasureTextWidth(text)
 	if err != nil {
 		return err
 	}
 
 	pdf.SetX((pageWidth - textWidth) / 2)
+	pdf.SetFillColor(255, 255, 255)
 	return pdf.Cell(nil, text)
 }
 
@@ -79,6 +79,19 @@ func writeCenteredParagraph(pdf *gopdf.GoPdf, text string) error {
 	return nil
 }
 
+func writeHint(pdf *gopdf.GoPdf, text string) error {
+	pdf.SetFont("default", "", hintFontSize)
+	textWidth, err := pdf.MeasureTextWidth(text)
+	if err != nil {
+		return err
+	}
+
+	pdf.SetX(pageWidth - textWidth - 10)
+	pdf.SetY(pageHeight - float64(hintFontSize) - 10)
+	pdf.SetFillColor(120, 120, 120)
+	return pdf.Cell(nil, text)
+}
+
 func BuildPDF(textDeck [][]string) (*gopdf.GoPdf, error) {
 	pdf, err := createNewPDF()
 	if err != nil {
@@ -86,8 +99,19 @@ func BuildPDF(textDeck [][]string) (*gopdf.GoPdf, error) {
 	}
 
 	for _, song := range textDeck {
+		hint := ""
 		for _, verse := range song {
+			if strings.HasPrefix(verse, "#") {
+				hint = verse[1:]
+				continue
+			}
+
 			addPage(pdf)
+			if hint != "" {
+				writeHint(pdf, hint)
+				hint = ""
+			}
+
 			err := writeCenteredParagraph(pdf, verse)
 			if err != nil {
 				return nil, err
