@@ -101,8 +101,8 @@ func BuildPDF(textDeck [][]string) (*gopdf.GoPdf, error) {
 	for _, song := range textDeck {
 		hint := ""
 		for _, verse := range song {
-			if strings.HasPrefix(verse, "#") {
-				hint = verse[1:]
+			if strings.HasPrefix(verse, "<hint>") && strings.HasSuffix(verse, "</hint>") {
+				hint = verse[6 : len(verse)-7]
 				continue
 			}
 
