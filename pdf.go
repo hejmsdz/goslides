@@ -9,7 +9,7 @@ import (
 const pageWidth float64 = 768
 const pageHeight float64 = 576
 const margin float64 = 50
-const fontSize int = 36
+const fontSize int = 42
 const hintFontSize int = 24
 const lineSpacing float64 = 1.3
 const font string = "./fonts/source-sans-pro.ttf"
