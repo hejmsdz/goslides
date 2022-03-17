@@ -82,12 +82,8 @@ func writeCenteredParagraph(pdf *gopdf.GoPdf, text string) error {
 
 func writeHint(pdf *gopdf.GoPdf, text string) error {
 	pdf.SetFont("default", "", hintFontSize)
-	textWidth, err := pdf.MeasureTextWidth(text)
-	if err != nil {
-		return err
-	}
 
-	pdf.SetX(pageWidth - textWidth - 10)
+	pdf.SetX(10)
 	pdf.SetY(pageHeight - float64(hintFontSize) - 10)
 	pdf.SetFillColor(120, 120, 120)
 	return pdf.Cell(nil, text)
@@ -111,6 +107,7 @@ func BuildPDF(textDeck [][]string) (*gopdf.GoPdf, error) {
 			if hint != "" {
 				writeHint(pdf, hint)
 				hint = ""
+				addPage(pdf)
 			}
 
 			err := writeCenteredParagraph(pdf, verse)
