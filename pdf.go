@@ -60,6 +60,7 @@ func writeCenteredLine(pdf *gopdf.GoPdf, text string) error {
 }
 
 func writeCenteredParagraph(pdf *gopdf.GoPdf, text string) error {
+	pdf.SetFont("default", "", fontSize)
 	lines := strings.Split(text, "\n")
 	lines = BreakLongLines(lines, pdf.MeasureTextWidth, contentWidth)
 	numLines := len(lines)
