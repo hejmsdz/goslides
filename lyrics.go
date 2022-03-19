@@ -161,6 +161,11 @@ func (sdb SongsDB) LoadMissingVerses(songIDs []string) error {
 			continue
 		}
 		response, _ := sdb.client.Block.GetChildren(context.Background(), notionapi.BlockID(songID), &pagination)
+
+		if response == nil {
+			return nil
+		}
+
 		lyrics := make([]string, 0)
 
 		for _, block := range response.Results {
@@ -178,6 +183,10 @@ func (sdb SongsDB) LoadMissingVerses(songIDs []string) error {
 
 func (sdb SongsDB) GetLyrics(songID string, hints bool) ([]string, bool) {
 	hasAllVerses := true
+
+	if _, ok := sdb.LyricsBlocks[songID]; !ok {
+		return nil, false
+	}
 
 	lyrics := make([]string, 0)
 	number := sdb.Songs[songID].Number

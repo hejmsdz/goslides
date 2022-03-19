@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -54,6 +55,31 @@ func getLiturgy(w http.ResponseWriter, req *http.Request, liturgyDB LiturgyDB) {
 
 func getManual(w http.ResponseWriter, req *http.Request, manual Manual) {
 	resp, err := json.Marshal(manual)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(resp)
+}
+
+func getLyrics(w http.ResponseWriter, req *http.Request, songsDB SongsDB) {
+	pathSegments := strings.Split(req.URL.Path, "/")
+	if len(pathSegments) < 4 {
+		http.Error(w, "Missing song ID", http.StatusBadRequest)
+		return
+	}
+	id := pathSegments[3]
+	songsDB.LoadMissingVerses([]string{id})
+	lyrics, _ := songsDB.GetLyrics(id, false)
+
+	if lyrics == nil {
+		http.Error(w, "Song ID not found", http.StatusNotFound)
+		return
+	}
+
+	resp, err := json.Marshal(lyrics)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -136,6 +162,10 @@ func runServer(songsDB *SongsDB, liturgyDB LiturgyDB, manual Manual, addr string
 	http.HandleFunc("/v2/songs", func(w http.ResponseWriter, req *http.Request) {
 		allowCors(&w, "OPTIONS, GET")
 		getSongs(w, req, *songsDB)
+	})
+	http.HandleFunc("/v2/lyrics/", func(w http.ResponseWriter, req *http.Request) {
+		allowCors(&w, "OPTIONS, GET")
+		getLyrics(w, req, *songsDB)
 	})
 	http.HandleFunc("/v2/liturgy", func(w http.ResponseWriter, req *http.Request) {
 		allowCors(&w, "OPTIONS, GET")
