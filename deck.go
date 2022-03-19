@@ -8,6 +8,7 @@ import (
 type Deck struct {
 	Date  string     `json:"date"`
 	Items []DeckItem `json:"items"`
+	Hints bool       `json:"hints"`
 }
 
 type DeckItem struct {
@@ -48,7 +49,7 @@ func (d Deck) ToTextSlides(songsDB SongsDB, liturgyDB LiturgyDB) ([][]string, bo
 	slides := make([][]string, 0)
 	for _, item := range d.Items {
 		if item.ID != "" {
-			lyrics, ok := songsDB.GetLyrics(item.ID)
+			lyrics, ok := songsDB.GetLyrics(item.ID, d.Hints)
 			if !ok {
 				return slides, false
 			}

@@ -176,12 +176,12 @@ func (sdb SongsDB) LoadMissingVerses(songIDs []string) error {
 	return nil
 }
 
-func (sdb SongsDB) GetLyrics(songID string) ([]string, bool) {
+func (sdb SongsDB) GetLyrics(songID string, hints bool) ([]string, bool) {
 	hasAllVerses := true
 
 	lyrics := make([]string, 0)
 	number := sdb.Songs[songID].Number
-	if number != "" {
+	if hints && number != "" {
 		lyrics = append(lyrics, "<hint>"+number+"</hint>")
 	}
 	for _, verse := range sdb.LyricsBlocks[songID] {
