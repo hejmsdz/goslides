@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 )
 
 type DeckResult struct {
@@ -112,6 +113,15 @@ func getBootstrap(w http.ResponseWriter, req *http.Request) {
 	w.Write(resp)
 }
 
+func postUpdateRelease(w http.ResponseWriter, req *http.Request) {
+	go func() {
+		time.Sleep(60 * time.Second)
+		ForceCheckCurrentVersion()
+	}()
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func postReload(w http.ResponseWriter, req *http.Request, songsDB *SongsDB) {
 	err := songsDB.Initialize(NOTION_TOKEN)
 	if err != nil {
@@ -149,6 +159,10 @@ func runServer(songsDB *SongsDB, liturgyDB LiturgyDB, manual Manual, addr string
 	http.HandleFunc("/v2/reload", func(w http.ResponseWriter, req *http.Request) {
 		allowCors(&w, "OPTIONS, POST")
 		postReload(w, req, songsDB)
+	})
+	http.HandleFunc("/v2/update_release", func(w http.ResponseWriter, req *http.Request) {
+		allowCors(&w, "OPTIONS, POST")
+		postUpdateRelease(w, req)
 	})
 	http.Handle("/public/", http.StripPrefix("/public/", http.FileServer(http.Dir("public"))))
 	log.Printf("starting server on %s", addr)
