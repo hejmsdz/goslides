@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/signintech/gopdf"
+	"github.com/skip2/go-qrcode"
 )
 
 const pageWidth float64 = 768
@@ -89,6 +90,25 @@ func writeHint(pdf *gopdf.GoPdf, text string) error {
 	return pdf.Cell(nil, text)
 }
 
+func drawQrCode(pdf *gopdf.GoPdf, content string) {
+	qrSize := 400
+	var png []byte
+	png, err := qrcode.Encode(content, qrcode.Medium, qrSize)
+	if err != nil {
+		return
+	}
+	imageHolder, err := gopdf.ImageHolderByBytes(png)
+	if err != nil {
+		return
+	}
+	x := (pageWidth - float64(qrSize)) / 2
+	y := (pageHeight - float64(qrSize)) / 2
+	rect := &gopdf.Rect{W: float64(qrSize), H: float64(qrSize)}
+	pdf.ImageByHolder(imageHolder, x, y, rect)
+	pdf.SetY(pageHeight - y + (y-float64(fontSize))/2)
+	writeCenteredLine(pdf, content)
+}
+
 func BuildPDF(textDeck [][]string) (*gopdf.GoPdf, error) {
 	pdf, err := createNewPDF()
 	if err != nil {
@@ -108,6 +128,12 @@ func BuildPDF(textDeck [][]string) (*gopdf.GoPdf, error) {
 				writeHint(pdf, hint)
 				hint = ""
 				addPage(pdf)
+			}
+
+			isUrl := strings.HasPrefix(verse, "https://") || strings.HasPrefix(verse, "http://")
+			if isUrl {
+				drawQrCode(pdf, verse)
+				continue
 			}
 
 			err := writeCenteredParagraph(pdf, verse)
