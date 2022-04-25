@@ -194,6 +194,7 @@ func (sdb SongsDB) GetLyrics(songID string, hints bool) ([]string, bool) {
 		lyrics = append(lyrics, "<hint>"+number+"</hint>")
 	}
 	for _, verse := range sdb.LyricsBlocks[songID] {
+		verse := strings.ReplaceAll(verse, " * ", "\n")
 		if verse != "" && !strings.HasPrefix(verse, "//") {
 			lyrics = append(lyrics, verse)
 		}
