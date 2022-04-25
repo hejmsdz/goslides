@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/jomei/notionapi"
+	"github.com/rainycape/unidecode"
 )
 
 const databaseId = "26c6e5f0367243e1870b1ee51d742632"
@@ -48,12 +49,11 @@ func extractText(property []notionapi.RichText) (text string) {
 	return
 }
 
-var slugReplacer = strings.NewReplacer("ą", "a", "ć", "c", "ę", "e", "ł", "l", "ń", "n", "ó", "o", "ś", "s", "ź", "z", "ż", "z")
 var nonAlpha = regexp.MustCompile("[^a-zA-Z0-9\\. ]+")
 
 func slugify(text string) string {
 	text = strings.ToLower(text)
-	text = slugReplacer.Replace(text)
+	text = unidecode.Unidecode(text)
 	text = nonAlpha.ReplaceAllString(text, "")
 
 	return text
