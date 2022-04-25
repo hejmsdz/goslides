@@ -4,12 +4,13 @@ import (
 	"strings"
 
 	"github.com/signintech/gopdf"
+	"github.com/skip2/go-qrcode"
 )
 
 const pageWidth float64 = 768
 const pageHeight float64 = 576
 const margin float64 = 50
-const fontSize int = 42
+const fontSize int = 36
 const hintFontSize int = 24
 const lineSpacing float64 = 1.3
 const font string = "./fonts/source-sans-pro.ttf"
@@ -60,6 +61,7 @@ func writeCenteredLine(pdf *gopdf.GoPdf, text string) error {
 }
 
 func writeCenteredParagraph(pdf *gopdf.GoPdf, text string) error {
+	pdf.SetFont("default", "", fontSize)
 	lines := strings.Split(text, "\n")
 	lines = BreakLongLines(lines, pdf.MeasureTextWidth, contentWidth)
 	numLines := len(lines)
@@ -81,15 +83,30 @@ func writeCenteredParagraph(pdf *gopdf.GoPdf, text string) error {
 
 func writeHint(pdf *gopdf.GoPdf, text string) error {
 	pdf.SetFont("default", "", hintFontSize)
-	textWidth, err := pdf.MeasureTextWidth(text)
-	if err != nil {
-		return err
-	}
 
-	pdf.SetX(pageWidth - textWidth - 10)
+	pdf.SetX(10)
 	pdf.SetY(pageHeight - float64(hintFontSize) - 10)
 	pdf.SetFillColor(120, 120, 120)
 	return pdf.Cell(nil, text)
+}
+
+func drawQrCode(pdf *gopdf.GoPdf, content string) {
+	qrSize := 400
+	var png []byte
+	png, err := qrcode.Encode(content, qrcode.Medium, qrSize)
+	if err != nil {
+		return
+	}
+	imageHolder, err := gopdf.ImageHolderByBytes(png)
+	if err != nil {
+		return
+	}
+	x := (pageWidth - float64(qrSize)) / 2
+	y := (pageHeight - float64(qrSize)) / 2
+	rect := &gopdf.Rect{W: float64(qrSize), H: float64(qrSize)}
+	pdf.ImageByHolder(imageHolder, x, y, rect)
+	pdf.SetY(pageHeight - y + (y-float64(fontSize))/2)
+	writeCenteredLine(pdf, content)
 }
 
 func BuildPDF(textDeck [][]string) (*gopdf.GoPdf, error) {
@@ -110,6 +127,13 @@ func BuildPDF(textDeck [][]string) (*gopdf.GoPdf, error) {
 			if hint != "" {
 				writeHint(pdf, hint)
 				hint = ""
+				addPage(pdf)
+			}
+
+			isUrl := strings.HasPrefix(verse, "https://") || strings.HasPrefix(verse, "http://")
+			if isUrl {
+				drawQrCode(pdf, verse)
+				continue
 			}
 
 			err := writeCenteredParagraph(pdf, verse)

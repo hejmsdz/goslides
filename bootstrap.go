@@ -18,6 +18,10 @@ func CheckCurrentVersion() {
 		return
 	}
 
+	ForceCheckCurrentVersion()
+}
+
+func ForceCheckCurrentVersion() {
 	client := github.NewClient(nil)
 	release, _, err := client.Repositories.GetLatestRelease(context.Background(), "hejmsdz", "slidesui")
 
