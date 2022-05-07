@@ -193,9 +193,13 @@ func (sdb SongsDB) GetLyrics(songID string, hints bool) ([]string, bool) {
 
 	lyrics := make([]string, 0)
 	namedVerses := make(map[string]string)
-	number := sdb.Songs[songID].Number
-	if hints && number != "" {
-		lyrics = append(lyrics, "<hint>"+number+"</hint>")
+	song := sdb.Songs[songID]
+	if hints {
+		hint := song.Number
+		if utfTitle := []rune(song.Title); hint == "" && len(utfTitle) >= 2 {
+			hint = string(utfTitle[0:2])
+		}
+		lyrics = append(lyrics, "<hint>"+hint+"</hint>")
 	}
 	for _, verse := range sdb.LyricsBlocks[songID] {
 		if match := verseRef.FindStringSubmatch(verse); match != nil {
