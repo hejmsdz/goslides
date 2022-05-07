@@ -181,6 +181,9 @@ func (sdb SongsDB) LoadMissingVerses(songIDs []string) error {
 	return nil
 }
 
+var verseName = regexp.MustCompile("^\\[(\\w+)\\]\\s+")
+var verseRef = regexp.MustCompile("^%(\\w+)$")
+
 func (sdb SongsDB) GetLyrics(songID string, hints bool) ([]string, bool) {
 	hasAllVerses := true
 
@@ -189,12 +192,25 @@ func (sdb SongsDB) GetLyrics(songID string, hints bool) ([]string, bool) {
 	}
 
 	lyrics := make([]string, 0)
+	namedVerses := make(map[string]string)
 	number := sdb.Songs[songID].Number
 	if hints && number != "" {
 		lyrics = append(lyrics, "<hint>"+number+"</hint>")
 	}
 	for _, verse := range sdb.LyricsBlocks[songID] {
-		verse := strings.ReplaceAll(verse, " * ", "\n")
+		if match := verseRef.FindStringSubmatch(verse); match != nil {
+			name := match[1]
+			if namedVerse, ok := namedVerses[name]; ok {
+				verse = namedVerse
+			}
+		} else {
+			verse = strings.ReplaceAll(verse, " * ", "\n")
+			if match := verseName.FindStringSubmatch(verse); match != nil {
+				name := match[1]
+				verse = verse[len(match[0]):]
+				namedVerses[name] = verse
+			}
+		}
 		if verse != "" && !strings.HasPrefix(verse, "//") {
 			lyrics = append(lyrics, verse)
 		}
