@@ -107,7 +107,7 @@ func postDeck(w http.ResponseWriter, req *http.Request, songsDB SongsDB, liturgy
 		http.Error(w, "Failed to get lyrics", http.StatusInternalServerError)
 		return
 	}
-	pdf, err := BuildPDF(textDeck)
+	pdf, err := BuildPDF(textDeck, deck.GetPageConfig())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

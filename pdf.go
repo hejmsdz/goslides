@@ -1,36 +1,44 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/signintech/gopdf"
 	"github.com/skip2/go-qrcode"
 )
 
-const pageWidth float64 = 768
-const pageHeight float64 = 576
-const margin float64 = 50
-const fontSize int = 36
-const hintFontSize int = 24
-const lineSpacing float64 = 1.3
-const font string = "./fonts/source-sans-pro.ttf"
+type PageConfig struct {
+	PageWidth    float64
+	PageHeight   float64
+	Margin       float64
+	FontSize     int
+	HintFontSize int
+	LineSpacing  float64
+	Font         string
+}
 
-const contentWidth = pageWidth - 2*margin
+type PdfSlides struct {
+	pageConfig PageConfig
+	goPdf      *gopdf.GoPdf
+}
 
-func createNewPDF() (*gopdf.GoPdf, error) {
-	pageSize := gopdf.Rect{W: pageWidth, H: pageHeight}
+func (pdf *PdfSlides) Initialize(pageConfig PageConfig) error {
+	pdf.pageConfig = pageConfig
+	pdf.goPdf = &gopdf.GoPdf{}
 
-	pdf := gopdf.GoPdf{}
-	pdf.Start(gopdf.Config{PageSize: pageSize})
+	pageSize := gopdf.Rect{W: pageConfig.PageWidth, H: pageConfig.PageHeight}
 
-	err := pdf.AddTTFFont("default", font)
+	pdf.goPdf.Start(gopdf.Config{PageSize: pageSize})
+
+	err := pdf.goPdf.AddTTFFont("default", pageConfig.Font)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	addPage(&pdf)
+	pdf.addPage()
 
-	return &pdf, nil
+	return nil
 }
 
 func measureText(draft *gopdf.GoPdf, text string) float64 {
@@ -41,38 +49,39 @@ func measureText(draft *gopdf.GoPdf, text string) float64 {
 	return draft.GetX()
 }
 
-func addPage(pdf *gopdf.GoPdf) {
-	pdf.AddPage()
+func (pdf *PdfSlides) addPage() {
+	pdf.goPdf.AddPage()
 
-	pdf.SetFillColor(0, 0, 0)
-	pdf.RectFromUpperLeftWithStyle(0, 0, pageWidth, pageHeight, "FD")
+	pdf.goPdf.SetFillColor(0, 0, 0)
+	pdf.goPdf.RectFromUpperLeftWithStyle(0, 0, pdf.pageConfig.PageWidth, pdf.pageConfig.PageHeight, "FD")
 }
 
-func writeCenteredLine(pdf *gopdf.GoPdf, text string) error {
-	pdf.SetFont("default", "", fontSize)
-	textWidth, err := pdf.MeasureTextWidth(text)
+func (pdf *PdfSlides) writeCenteredLine(text string) error {
+	pdf.goPdf.SetFont("default", "", pdf.pageConfig.FontSize)
+	textWidth, err := pdf.goPdf.MeasureTextWidth(text)
 	if err != nil {
 		return err
 	}
 
-	pdf.SetX((pageWidth - textWidth) / 2)
-	pdf.SetFillColor(255, 255, 255)
-	return pdf.Cell(nil, text)
+	pdf.goPdf.SetX((pdf.pageConfig.PageWidth - textWidth) / 2)
+	pdf.goPdf.SetFillColor(255, 255, 255)
+	return pdf.goPdf.Cell(nil, text)
 }
 
-func writeCenteredParagraph(pdf *gopdf.GoPdf, text string) error {
-	pdf.SetFont("default", "", fontSize)
+func (pdf *PdfSlides) writeCenteredParagraph(text string) error {
+	contentWidth := pdf.pageConfig.PageWidth - 2*pdf.pageConfig.Margin
+	pdf.goPdf.SetFont("default", "", pdf.pageConfig.FontSize)
 	lines := strings.Split(text, "\n")
-	lines = BreakLongLines(lines, pdf.MeasureTextWidth, contentWidth)
+	lines = BreakLongLines(lines, pdf.goPdf.MeasureTextWidth, contentWidth)
 	numLines := len(lines)
-	lineHeight := float64(fontSize) * lineSpacing
+	lineHeight := float64(pdf.pageConfig.FontSize) * pdf.pageConfig.LineSpacing
 	paragraphHeight := float64(numLines) * lineHeight
-	y0 := (pageHeight - paragraphHeight) / 2
+	y0 := (pdf.pageConfig.PageHeight - paragraphHeight) / 2
 
 	for index, line := range lines {
 		y := y0 + float64(index)*lineHeight
-		pdf.SetY(y)
-		err := writeCenteredLine(pdf, line)
+		pdf.goPdf.SetY(y)
+		err := pdf.writeCenteredLine(line)
 		if err != nil {
 			return err
 		}
@@ -81,16 +90,16 @@ func writeCenteredParagraph(pdf *gopdf.GoPdf, text string) error {
 	return nil
 }
 
-func writeHint(pdf *gopdf.GoPdf, text string) error {
-	pdf.SetFont("default", "", hintFontSize)
+func (pdf *PdfSlides) writeHint(text string) error {
+	pdf.goPdf.SetFont("default", "", pdf.pageConfig.HintFontSize)
 
-	pdf.SetX(10)
-	pdf.SetY(pageHeight - float64(hintFontSize) - 10)
-	pdf.SetFillColor(120, 120, 120)
-	return pdf.Cell(nil, text)
+	pdf.goPdf.SetX(10)
+	pdf.goPdf.SetY(pdf.pageConfig.PageHeight - float64(pdf.pageConfig.HintFontSize) - 10)
+	pdf.goPdf.SetFillColor(120, 120, 120)
+	return pdf.goPdf.Cell(nil, text)
 }
 
-func drawQrCode(pdf *gopdf.GoPdf, content string) {
+func (pdf *PdfSlides) drawQrCode(content string) {
 	qrSize := 400
 	var png []byte
 	png, err := qrcode.Encode(content, qrcode.Medium, qrSize)
@@ -101,16 +110,18 @@ func drawQrCode(pdf *gopdf.GoPdf, content string) {
 	if err != nil {
 		return
 	}
-	x := (pageWidth - float64(qrSize)) / 2
-	y := (pageHeight - float64(qrSize)) / 2
+	x := (pdf.pageConfig.PageWidth - float64(qrSize)) / 2
+	y := (pdf.pageConfig.PageHeight - float64(qrSize)) / 2
 	rect := &gopdf.Rect{W: float64(qrSize), H: float64(qrSize)}
-	pdf.ImageByHolder(imageHolder, x, y, rect)
-	pdf.SetY(pageHeight - y + (y-float64(fontSize))/2)
-	writeCenteredLine(pdf, content)
+	pdf.goPdf.ImageByHolder(imageHolder, x, y, rect)
+	pdf.goPdf.SetY(pdf.pageConfig.PageHeight - y + (y-float64(pdf.pageConfig.FontSize))/2)
+	pdf.writeCenteredLine(content)
 }
 
-func BuildPDF(textDeck [][]string) (*gopdf.GoPdf, error) {
-	pdf, err := createNewPDF()
+func BuildPDF(textDeck [][]string, pageConfig PageConfig) (*gopdf.GoPdf, error) {
+	pdf := PdfSlides{}
+	err := pdf.Initialize(pageConfig)
+	fmt.Printf("%+v", pdf)
 	if err != nil {
 		return nil, err
 	}
@@ -123,26 +134,26 @@ func BuildPDF(textDeck [][]string) (*gopdf.GoPdf, error) {
 				continue
 			}
 
-			addPage(pdf)
+			pdf.addPage()
 			if hint != "" {
-				writeHint(pdf, hint)
+				pdf.writeHint(hint)
 				hint = ""
-				addPage(pdf)
+				pdf.addPage()
 			}
 
 			isUrl := strings.HasPrefix(verse, "https://") || strings.HasPrefix(verse, "http://")
 			if isUrl {
-				drawQrCode(pdf, verse)
+				pdf.drawQrCode(verse)
 				continue
 			}
 
-			err := writeCenteredParagraph(pdf, verse)
+			err := pdf.writeCenteredParagraph(verse)
 			if err != nil {
 				return nil, err
 			}
 		}
-		addPage(pdf)
+		pdf.addPage()
 	}
 
-	return pdf, nil
+	return pdf.goPdf, nil
 }

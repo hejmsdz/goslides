@@ -6,9 +6,11 @@ import (
 )
 
 type Deck struct {
-	Date  string     `json:"date"`
-	Items []DeckItem `json:"items"`
-	Hints bool       `json:"hints"`
+	Date     string     `json:"date"`
+	Items    []DeckItem `json:"items"`
+	Hints    bool       `json:"hints"`
+	Ratio    string     `json:"ratio"`
+	FontSize int        `json:"fontSize"`
 }
 
 type DeckItem struct {
@@ -25,6 +27,31 @@ func (d Deck) IsValid() bool {
 	}
 
 	return true
+}
+
+func (d Deck) GetPageConfig() PageConfig {
+	ratio := 4.0 / 3.0
+	fontSize := 36
+
+	if d.Ratio == "16:9" {
+		ratio = 16.0 / 9.0
+	}
+
+	if d.FontSize > 0 {
+		fontSize = d.FontSize
+	}
+
+	pageWidth := 768.0
+
+	return PageConfig{
+		PageWidth:    pageWidth,
+		PageHeight:   pageWidth / ratio,
+		Margin:       50,
+		FontSize:     fontSize,
+		HintFontSize: fontSize * 2 / 3,
+		LineSpacing:  1.3,
+		Font:         "./fonts/source-sans-pro.ttf",
+	}
 }
 
 func (d Deck) ToTextSlides(songsDB SongsDB, liturgyDB LiturgyDB) ([][]string, bool) {
