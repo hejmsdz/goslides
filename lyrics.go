@@ -12,7 +12,6 @@ import (
 	"github.com/rainycape/unidecode"
 )
 
-const databaseId = "26c6e5f0367243e1870b1ee51d742632"
 const propertyNameTitle = "Tytuł"
 const propertyNameNumber = "Numer"
 const propertyNameTags = "Kategorie"
@@ -59,7 +58,7 @@ func slugify(text string) string {
 	return text
 }
 
-func (sdb *SongsDB) Initialize(authToken string) error {
+func (sdb *SongsDB) Initialize(authToken string, databaseId string) error {
 	sdb.client = notionapi.NewClient(notionapi.Token(authToken))
 	sdb.Songs = make(map[string]Song, 0)
 	sdb.LyricsBlocks = make(map[string][]string, 0)
@@ -73,7 +72,7 @@ func (sdb *SongsDB) Initialize(authToken string) error {
 	}
 
 	for {
-		result, err := sdb.client.Database.Query(context.Background(), databaseId, &query)
+		result, err := sdb.client.Database.Query(context.Background(), notionapi.DatabaseID(databaseId), &query)
 		if err != nil {
 			return err
 		}

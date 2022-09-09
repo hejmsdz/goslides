@@ -149,7 +149,7 @@ func postUpdateRelease(w http.ResponseWriter, req *http.Request) {
 }
 
 func postReload(w http.ResponseWriter, req *http.Request, songsDB *SongsDB) {
-	err := songsDB.Initialize(NOTION_TOKEN)
+	err := songsDB.Initialize(NOTION_TOKEN, NOTION_DB)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
