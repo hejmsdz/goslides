@@ -19,10 +19,14 @@ type DeckItem struct {
 	Contents []string `json:"contents"`
 }
 
-var dateRegexp = regexp.MustCompile("^20\\d\\d-[0-1]\\d-[0-3]\\d$")
+var dateRegexp = regexp.MustCompile(`^20\d\d-[0-1]\d-[0-3]\d$`)
 
 func (d Deck) IsValid() bool {
 	if !dateRegexp.MatchString(d.Date) {
+		return false
+	}
+
+	if len(d.Items) == 0 {
 		return false
 	}
 
