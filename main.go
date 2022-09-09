@@ -7,9 +7,10 @@ import (
 
 var NOTION_TOKEN = os.Getenv("NOTION_TOKEN")
 var NOTION_DB = os.Getenv("NOTION_DB")
+var NOTION_MANUAL = os.Getenv("NOTION_MANUAL")
 
 func main() {
-	manual, _ := GetManual(NOTION_TOKEN)
+	manual, _ := GetManual(NOTION_TOKEN, NOTION_MANUAL)
 
 	songsDB := SongsDB{}
 	songsDB.Initialize(NOTION_TOKEN, NOTION_DB)

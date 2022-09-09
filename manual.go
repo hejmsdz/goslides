@@ -11,16 +11,19 @@ type Manual struct {
 	Image string   `json:"image"`
 }
 
-const manualPageID = "e831bd736718447e8177ade7435337cb"
-
-func GetManual(authToken string) (Manual, bool) {
+func GetManual(authToken string, manualPageID string) (Manual, bool) {
 	m := Manual{make([]string, 0), ""}
 	client := notionapi.NewClient(notionapi.Token(authToken))
 	pagination := notionapi.Pagination{
 		StartCursor: "",
 		PageSize:    100,
 	}
-	blocks, err := client.Block.GetChildren(context.Background(), manualPageID, &pagination)
+
+	blocks, err := client.Block.GetChildren(
+		context.Background(),
+		notionapi.BlockID(manualPageID),
+		&pagination,
+	)
 
 	if err != nil {
 		return m, false
