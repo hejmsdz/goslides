@@ -1,200 +1,130 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
-	"strings"
 	"time"
+
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 )
 
 type DeckResult struct {
 	URL string `json:"url"`
 }
 
-func getPublicURL(req *http.Request, fileName string) string {
+func getPublicURL(c *gin.Context, fileName string) string {
 	scheme := "https"
-	return fmt.Sprintf("%s://%s/public/%s", scheme, req.Host, fileName)
+	return fmt.Sprintf("%s://%s/public/%s", scheme, c.Request.Host, fileName)
 }
 
-func allowCors(w *http.ResponseWriter, methods string) {
-	(*w).Header().Set("Access-Control-Allow-Origin", "*")
-	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding")
-	(*w).Header().Set("Access-Control-Allow-Methods", methods)
+type Server struct {
+	songsDB   *SongsDB
+	liturgyDB LiturgyDB
+	manual    Manual
+	addr      string
 }
 
-func getSongs(w http.ResponseWriter, req *http.Request, songsDB SongsDB) {
-	query := req.URL.Query().Get("query")
-	resp, err := json.Marshal(songsDB.FilterSongs(query))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(resp)
+func (srv Server) getBootstrap(c *gin.Context) {
+	CheckCurrentVersion()
+	c.JSON(http.StatusOK, bootstrap)
 }
 
-func getLiturgy(w http.ResponseWriter, req *http.Request, liturgyDB LiturgyDB) {
-	date := req.URL.Query().Get("date")
-	liturgy, ok := liturgyDB.GetDay(date)
-	if !ok {
-		http.Error(w, "liturgy error", http.StatusInternalServerError)
-		return
-	}
-	resp, err := json.Marshal(liturgy)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(resp)
+func (srv Server) getSongs(c *gin.Context) {
+	query := c.Query("query")
+	songs := srv.songsDB.FilterSongs(query)
+	c.JSON(http.StatusOK, songs)
 }
 
-func getManual(w http.ResponseWriter, req *http.Request, manual Manual) {
-	resp, err := json.Marshal(manual)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(resp)
-}
-
-func getLyrics(w http.ResponseWriter, req *http.Request, songsDB SongsDB) {
-	pathSegments := strings.Split(req.URL.Path, "/")
-	if len(pathSegments) < 4 {
-		http.Error(w, "Missing song ID", http.StatusBadRequest)
-		return
-	}
-	id := pathSegments[3]
-	songsDB.LoadMissingVerses([]string{id})
-	lyrics, _ := songsDB.GetLyrics(id, false)
+func (srv Server) getLyrics(c *gin.Context) {
+	id := c.Param("id")
+	srv.songsDB.LoadMissingVerses([]string{id})
+	lyrics, _ := srv.songsDB.GetLyrics(id, false)
 
 	if lyrics == nil {
-		http.Error(w, "Song ID not found", http.StatusNotFound)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Song ID not found"})
 		return
 	}
 
-	resp, err := json.Marshal(lyrics)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(resp)
+	c.JSON(http.StatusOK, lyrics)
 }
 
-func postDeck(w http.ResponseWriter, req *http.Request, songsDB SongsDB, liturgyDB LiturgyDB) {
+func (srv Server) getLiturgy(c *gin.Context) {
+	date := c.Param("date")
+	liturgy, ok := srv.liturgyDB.GetDay(date)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Liturgy error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, liturgy)
+}
+
+func (srv Server) getManual(c *gin.Context) {
+	c.JSON(http.StatusOK, srv.manual)
+}
+
+func (srv Server) postDeck(c *gin.Context) {
 	var deck Deck
-	err := json.NewDecoder(req.Body).Decode(&deck)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if err := c.ShouldBind(&deck); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	if !deck.IsValid() {
-		http.Error(w, "Invalid input", http.StatusUnprocessableEntity)
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "Invalid deck data"})
 		return
 	}
 
-	textDeck, ok := deck.ToTextSlides(songsDB, liturgyDB)
+	textDeck, ok := deck.ToTextSlides(*srv.songsDB, srv.liturgyDB)
 	if !ok {
-		http.Error(w, "Failed to get lyrics", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get lyrics"})
 		return
 	}
 	pdf, err := BuildPDF(textDeck, deck.GetPageConfig())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	pdfName := deck.Date + ".pdf"
 	SaveTemporaryPDF(pdf, pdfName)
 
-	deckResult := DeckResult{getPublicURL(req, pdfName)}
-	resp, err := json.Marshal(deckResult)
+	deckResult := DeckResult{getPublicURL(c, pdfName)}
+	c.JSON(http.StatusOK, deckResult)
+}
+
+func (srv Server) postReload(c *gin.Context) {
+	err := srv.songsDB.Initialize(NOTION_TOKEN, NOTION_DB)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(resp)
+	c.Writer.WriteHeader(http.StatusNoContent)
 }
 
-func getBootstrap(w http.ResponseWriter, req *http.Request) {
-	CheckCurrentVersion()
-	resp, err := json.Marshal(bootstrap)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(resp)
-}
-
-func postUpdateRelease(w http.ResponseWriter, req *http.Request) {
+func (srv Server) postUpdateRelease(c *gin.Context) {
 	go func() {
 		time.Sleep(60 * time.Second)
 		ForceCheckCurrentVersion()
 	}()
 
-	w.WriteHeader(http.StatusNoContent)
+	c.Writer.WriteHeader(http.StatusNoContent)
 }
 
-func postReload(w http.ResponseWriter, req *http.Request, songsDB *SongsDB) {
-	err := songsDB.Initialize(NOTION_TOKEN, NOTION_DB)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func runServer(songsDB *SongsDB, liturgyDB LiturgyDB, manual Manual, addr string) {
-	http.HandleFunc("/v2/songs", func(w http.ResponseWriter, req *http.Request) {
-		allowCors(&w, "OPTIONS, GET")
-		getSongs(w, req, *songsDB)
-	})
-	http.HandleFunc("/v2/lyrics/", func(w http.ResponseWriter, req *http.Request) {
-		allowCors(&w, "OPTIONS, GET")
-		getLyrics(w, req, *songsDB)
-	})
-	http.HandleFunc("/v2/liturgy", func(w http.ResponseWriter, req *http.Request) {
-		allowCors(&w, "OPTIONS, GET")
-		getLiturgy(w, req, liturgyDB)
-	})
-	http.HandleFunc("/v2/manual", func(w http.ResponseWriter, req *http.Request) {
-		allowCors(&w, "OPTIONS, GET")
-		getManual(w, req, manual)
-	})
-	http.HandleFunc("/v2/deck", func(w http.ResponseWriter, req *http.Request) {
-		allowCors(&w, "OPTIONS, POST")
-		if (*req).Method == "OPTIONS" {
-			return
-		}
-		postDeck(w, req, *songsDB, liturgyDB)
-	})
-	http.HandleFunc("/v2/bootstrap", func(w http.ResponseWriter, req *http.Request) {
-		allowCors(&w, "OPTIONS, GET")
-		getBootstrap(w, req)
-	})
-	http.HandleFunc("/v2/reload", func(w http.ResponseWriter, req *http.Request) {
-		allowCors(&w, "OPTIONS, POST")
-		postReload(w, req, songsDB)
-	})
-	http.HandleFunc("/v2/update_release", func(w http.ResponseWriter, req *http.Request) {
-		allowCors(&w, "OPTIONS, POST")
-		postUpdateRelease(w, req)
-	})
-	http.Handle("/public/", http.StripPrefix("/public/", http.FileServer(http.Dir("public"))))
-	log.Printf("starting server on %s", addr)
-	http.ListenAndServe(addr, nil)
+func (srv Server) Run() {
+	r := gin.Default()
+	r.Static("/public", "./public")
+	v2 := r.Group("/v2")
+	v2.Use(cors.Default())
+	v2.GET("/bootstrap", srv.getBootstrap)
+	v2.GET("/songs", srv.getSongs)
+	v2.GET("/lyrics/:id", srv.getLyrics)
+	v2.GET("/liturgy/:date", srv.getLiturgy)
+	v2.GET("/manual", srv.getManual)
+	v2.POST("/deck", srv.postDeck)
+	v2.POST("/reload", srv.postReload)
+	v2.POST("/update_release", srv.postUpdateRelease)
+	r.Run(srv.addr)
 }

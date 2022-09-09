@@ -21,5 +21,11 @@ func main() {
 	if port == "" {
 		port = "8000"
 	}
-	runServer(&songsDB, liturgyDB, manual, fmt.Sprintf(":%s", port))
+
+	Server{
+		songsDB:   &songsDB,
+		liturgyDB: liturgyDB,
+		manual:    manual,
+		addr:      fmt.Sprintf(":%s", port),
+	}.Run()
 }
