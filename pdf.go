@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/signintech/gopdf"
@@ -39,14 +38,6 @@ func (pdf *PdfSlides) Initialize(pageConfig PageConfig) error {
 	pdf.addPage()
 
 	return nil
-}
-
-func measureText(draft *gopdf.GoPdf, text string) float64 {
-	draft.SetX(0)
-	draft.SetY(0)
-	draft.Cell(nil, text)
-
-	return draft.GetX()
 }
 
 func (pdf *PdfSlides) addPage() {
@@ -121,7 +112,6 @@ func (pdf *PdfSlides) drawQrCode(content string) {
 func BuildPDF(textDeck [][]string, pageConfig PageConfig) (*gopdf.GoPdf, error) {
 	pdf := PdfSlides{}
 	err := pdf.Initialize(pageConfig)
-	fmt.Printf("%+v", pdf)
 	if err != nil {
 		return nil, err
 	}
@@ -129,8 +119,8 @@ func BuildPDF(textDeck [][]string, pageConfig PageConfig) (*gopdf.GoPdf, error) 
 	for _, song := range textDeck {
 		hint := ""
 		for _, verse := range song {
-			if strings.HasPrefix(verse, "<hint>") && strings.HasSuffix(verse, "</hint>") {
-				hint = verse[6 : len(verse)-7]
+			if strings.HasPrefix(verse, hintStartTag) && strings.HasSuffix(verse, hintEndTag) {
+				hint = verse[len(hintStartTag) : len(verse)-len(hintEndTag)]
 				continue
 			}
 

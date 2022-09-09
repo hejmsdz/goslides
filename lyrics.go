@@ -17,6 +17,17 @@ const propertyNameNumber = "Numer"
 const propertyNameTags = "Kategorie"
 const ordinaryTag = "części stałe"
 
+var nonAlpha = regexp.MustCompile(`[^a-zA-Z0-9\. ]+`)
+var verseName = regexp.MustCompile(`^\[(\w+)\]\s+`)
+var verseRef = regexp.MustCompile(`^%(\w+)$`)
+var numberQueryRegexp = regexp.MustCompile(`^\d`)
+
+const commentSymbol = "//"
+const lineBreakSymbol = " * "
+
+const hintStartTag = "<hint>"
+const hintEndTag = "</hint>"
+
 type Song struct {
 	Id         string `json:"id"`
 	Title      string `json:"title"`
@@ -48,12 +59,11 @@ func extractText(property []notionapi.RichText) (text string) {
 	return
 }
 
-var nonAlpha = regexp.MustCompile("[^a-zA-Z0-9\\. ]+")
-
 func slugify(text string) string {
 	text = strings.ToLower(text)
 	text = unidecode.Unidecode(text)
 	text = nonAlpha.ReplaceAllString(text, "")
+	text = strings.Trim(text, " ")
 
 	return text
 }
@@ -72,7 +82,11 @@ func (sdb *SongsDB) Initialize(authToken string, databaseId string) error {
 	}
 
 	for {
-		result, err := sdb.client.Database.Query(context.Background(), notionapi.DatabaseID(databaseId), &query)
+		result, err := sdb.client.Database.Query(
+			context.Background(),
+			notionapi.DatabaseID(databaseId),
+			&query,
+		)
 		if err != nil {
 			return err
 		}
@@ -116,8 +130,6 @@ func (sdb *SongsDB) Initialize(authToken string, databaseId string) error {
 	}
 }
 
-var numberQueryRegexp = regexp.MustCompile("^\\d")
-
 func (sdb SongsDB) FilterSongs(query string) (results []Song) {
 	results = make([]Song, 0)
 
@@ -133,7 +145,7 @@ func (sdb SongsDB) FilterSongs(query string) (results []Song) {
 		}
 	}
 
-	isNumberQuery := numberQueryRegexp.Match([]byte(query))
+	isNumberQuery := numberQueryRegexp.MatchString(query)
 	sort.Slice(results, func(i, j int) bool {
 		if isNumberQuery {
 			iChapter, jChapter := results[i].numberChapter, results[j].numberChapter
@@ -159,7 +171,11 @@ func (sdb SongsDB) LoadMissingVerses(songIDs []string) error {
 		if _, ok := sdb.LyricsBlocks[songID]; ok {
 			continue
 		}
-		response, _ := sdb.client.Block.GetChildren(context.Background(), notionapi.BlockID(songID), &pagination)
+		response, _ := sdb.client.Block.GetChildren(
+			context.Background(),
+			notionapi.BlockID(songID),
+			&pagination,
+		)
 
 		if response == nil {
 			return nil
@@ -180,9 +196,6 @@ func (sdb SongsDB) LoadMissingVerses(songIDs []string) error {
 	return nil
 }
 
-var verseName = regexp.MustCompile("^\\[(\\w+)\\]\\s+")
-var verseRef = regexp.MustCompile("^%(\\w+)$")
-
 func (sdb SongsDB) GetLyrics(songID string, hints bool) ([]string, bool) {
 	hasAllVerses := true
 
@@ -198,7 +211,7 @@ func (sdb SongsDB) GetLyrics(songID string, hints bool) ([]string, bool) {
 		if utfTitle := []rune(song.Title); hint == "" && len(utfTitle) >= 2 {
 			hint = string(utfTitle[0:2])
 		}
-		lyrics = append(lyrics, "<hint>"+hint+"</hint>")
+		lyrics = append(lyrics, hintStartTag+hint+hintEndTag)
 	}
 	for _, verse := range sdb.LyricsBlocks[songID] {
 		if match := verseRef.FindStringSubmatch(verse); match != nil {
@@ -207,14 +220,14 @@ func (sdb SongsDB) GetLyrics(songID string, hints bool) ([]string, bool) {
 				verse = namedVerse
 			}
 		} else {
-			verse = strings.ReplaceAll(verse, " * ", "\n")
+			verse = strings.ReplaceAll(verse, lineBreakSymbol, "\n")
 			if match := verseName.FindStringSubmatch(verse); match != nil {
 				name := match[1]
 				verse = verse[len(match[0]):]
 				namedVerses[name] = verse
 			}
 		}
-		if verse != "" && !strings.HasPrefix(verse, "//") {
+		if verse != "" && !strings.HasPrefix(verse, commentSymbol) {
 			lyrics = append(lyrics, verse)
 		}
 	}

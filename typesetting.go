@@ -54,9 +54,7 @@ func breakLine(line string, measure Measurer, contentWidth float64, separator st
 		return result
 	}
 
-	var words []string
-	words = strings.SplitAfter(line, separator)
-
+	words := strings.SplitAfter(line, separator)
 	start := 0
 	end := len(words)
 
