@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	cors "github.com/rs/cors/wrapper/gin"
 )
 
 type DeckResult struct {
@@ -115,9 +115,9 @@ func (srv Server) postUpdateRelease(c *gin.Context) {
 
 func (srv Server) Run() {
 	r := gin.Default()
+	r.Use(cors.Default())
 	r.Static("/public", "./public")
 	v2 := r.Group("/v2")
-	v2.Use(cors.Default())
 	v2.GET("/bootstrap", srv.getBootstrap)
 	v2.GET("/songs", srv.getSongs)
 	v2.GET("/lyrics/:id", srv.getLyrics)
