@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	cors "github.com/rs/cors/wrapper/gin"
 )
 
 type DeckResult struct {
@@ -16,6 +15,19 @@ type DeckResult struct {
 func getPublicURL(c *gin.Context, fileName string) string {
 	scheme := "https"
 	return fmt.Sprintf("%s://%s/public/%s", scheme, c.Request.Host, fileName)
+}
+
+func corsMiddleware(c *gin.Context) {
+	c.Writer.Header().Set("Access-Control-Allow-Origin", c.Request.Header.Get("Origin"))
+	c.Writer.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding")
+	c.Writer.Header().Set("Access-Control-Allow-Methods", "OPTIONS, GET, POST")
+
+	if c.Request.Method == "OPTIONS" {
+		c.AbortWithStatus(204)
+		return
+	}
+
+	c.Next()
 }
 
 type Server struct {
@@ -115,7 +127,7 @@ func (srv Server) postUpdateRelease(c *gin.Context) {
 
 func (srv Server) Run() {
 	r := gin.Default()
-	r.Use(cors.Default())
+	r.Use(corsMiddleware)
 	r.Static("/public", "./public")
 	v2 := r.Group("/v2")
 	v2.GET("/bootstrap", srv.getBootstrap)
