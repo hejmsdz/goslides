@@ -9,9 +9,9 @@ import (
 )
 
 type Liturgy struct {
-	Psalm            string
-	Acclamation      string
-	AcclamationVerse string
+	Psalm            string `json:"psalm"`
+	Acclamation      string `json:"acclamation"`
+	AcclamationVerse string `json:"acclamationVerse"`
 }
 
 type LiturgyDB struct {
