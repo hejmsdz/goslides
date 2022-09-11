@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jomei/notionapi"
 	"github.com/rainycape/unidecode"
@@ -38,6 +39,7 @@ type Song struct {
 
 	numberChapter int
 	numberItem    int
+	updatedAt     time.Time
 }
 
 type SongsDB struct {
@@ -92,34 +94,7 @@ func (sdb *SongsDB) Initialize(authToken string, databaseId string) error {
 		}
 
 		for _, song := range result.Results {
-			pageID := song.ID.String()
-			title := extractText(song.Properties[propertyNameTitle].(*notionapi.TitleProperty).Title)
-			number := extractText(song.Properties[propertyNameNumber].(*notionapi.RichTextProperty).RichText)
-			tags := song.Properties[propertyNameTags].(*notionapi.MultiSelectProperty)
-			joinedTags := ""
-
-			for _, tag := range tags.MultiSelect {
-				joinedTags += tag.Name + " "
-			}
-
-			numberSplit := strings.Split(number, ".")
-			numberChapter, numberItem := -1, -1
-			if len(numberSplit) == 2 {
-				numberChapter, _ = strconv.Atoi(numberSplit[0])
-				numberItem, _ = strconv.Atoi(numberSplit[1])
-			}
-
-			sdb.Songs[pageID] = Song{
-				Id:         pageID,
-				Title:      title,
-				Number:     number,
-				Tags:       joinedTags,
-				Slug:       fmt.Sprintf("%s|%s|%s", slugify(title), number, slugify(joinedTags)),
-				IsOrdinary: strings.Contains(joinedTags, ordinaryTag),
-
-				numberChapter: numberChapter,
-				numberItem:    numberItem,
-			}
+			sdb.SaveSong(song)
 		}
 
 		if result.HasMore {
@@ -127,6 +102,38 @@ func (sdb *SongsDB) Initialize(authToken string, databaseId string) error {
 		} else {
 			return nil
 		}
+	}
+}
+
+func (sdb SongsDB) SaveSong(song notionapi.Page) {
+	pageID := song.ID.String()
+	title := extractText(song.Properties[propertyNameTitle].(*notionapi.TitleProperty).Title)
+	number := extractText(song.Properties[propertyNameNumber].(*notionapi.RichTextProperty).RichText)
+	tags := song.Properties[propertyNameTags].(*notionapi.MultiSelectProperty)
+	joinedTags := ""
+
+	for _, tag := range tags.MultiSelect {
+		joinedTags += tag.Name + " "
+	}
+
+	numberSplit := strings.Split(number, ".")
+	numberChapter, numberItem := -1, -1
+	if len(numberSplit) == 2 {
+		numberChapter, _ = strconv.Atoi(numberSplit[0])
+		numberItem, _ = strconv.Atoi(numberSplit[1])
+	}
+
+	sdb.Songs[pageID] = Song{
+		Id:         pageID,
+		Title:      title,
+		Number:     number,
+		Tags:       joinedTags,
+		Slug:       fmt.Sprintf("%s|%s|%s", slugify(title), number, slugify(joinedTags)),
+		IsOrdinary: strings.Contains(joinedTags, ordinaryTag),
+
+		numberChapter: numberChapter,
+		numberItem:    numberItem,
+		updatedAt:     song.LastEditedTime,
 	}
 }
 
@@ -168,9 +175,21 @@ func (sdb SongsDB) LoadMissingVerses(songIDs []string) error {
 		PageSize:    100,
 	}
 	for _, songID := range songIDs {
-		if _, ok := sdb.LyricsBlocks[songID]; ok {
+		upToDateSong, err := sdb.client.Page.Get(context.Background(), notionapi.PageID(songID))
+		if err != nil {
 			continue
 		}
+		isUpdated := upToDateSong.LastEditedTime.After(sdb.Songs[songID].updatedAt)
+		_, hasLyrics := sdb.LyricsBlocks[songID]
+
+		if !isUpdated && hasLyrics {
+			continue
+		}
+
+		if isUpdated {
+			sdb.SaveSong(*upToDateSong)
+		}
+
 		response, _ := sdb.client.Block.GetChildren(
 			context.Background(),
 			notionapi.BlockID(songID),
