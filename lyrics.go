@@ -70,6 +70,28 @@ func slugify(text string) string {
 	return text
 }
 
+func joinTags(tags notionapi.MultiSelectProperty) string {
+	joinedTags := ""
+
+	for _, tag := range tags.MultiSelect {
+		joinedTags += tag.Name + " "
+	}
+
+	return joinedTags
+}
+
+func parseNumber(number string) (int, int) {
+	numberChapter, numberItem := -1, -1
+	numberSplit := strings.Split(number, ".")
+
+	if len(numberSplit) == 2 {
+		numberChapter, _ = strconv.Atoi(numberSplit[0])
+		numberItem, _ = strconv.Atoi(numberSplit[1])
+	}
+
+	return numberChapter, numberItem
+}
+
 func (sdb *SongsDB) Initialize(authToken string, databaseId string) error {
 	sdb.client = notionapi.NewClient(notionapi.Token(authToken))
 	sdb.Songs = make(map[string]Song, 0)
@@ -109,27 +131,16 @@ func (sdb SongsDB) SaveSong(song notionapi.Page) {
 	pageID := song.ID.String()
 	title := extractText(song.Properties[propertyNameTitle].(*notionapi.TitleProperty).Title)
 	number := extractText(song.Properties[propertyNameNumber].(*notionapi.RichTextProperty).RichText)
-	tags := song.Properties[propertyNameTags].(*notionapi.MultiSelectProperty)
-	joinedTags := ""
-
-	for _, tag := range tags.MultiSelect {
-		joinedTags += tag.Name + " "
-	}
-
-	numberSplit := strings.Split(number, ".")
-	numberChapter, numberItem := -1, -1
-	if len(numberSplit) == 2 {
-		numberChapter, _ = strconv.Atoi(numberSplit[0])
-		numberItem, _ = strconv.Atoi(numberSplit[1])
-	}
+	tags := joinTags(*song.Properties[propertyNameTags].(*notionapi.MultiSelectProperty))
+	numberChapter, numberItem := parseNumber(number)
 
 	sdb.Songs[pageID] = Song{
 		Id:         pageID,
 		Title:      title,
 		Number:     number,
-		Tags:       joinedTags,
-		Slug:       fmt.Sprintf("%s|%s|%s", slugify(title), number, slugify(joinedTags)),
-		IsOrdinary: strings.Contains(joinedTags, ordinaryTag),
+		Tags:       tags,
+		Slug:       fmt.Sprintf("%s|%s|%s", slugify(title), number, slugify(tags)),
+		IsOrdinary: strings.Contains(tags, ordinaryTag),
 
 		numberChapter: numberChapter,
 		numberItem:    numberItem,
