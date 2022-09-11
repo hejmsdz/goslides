@@ -174,42 +174,53 @@ func (sdb SongsDB) LoadMissingVerses(songIDs []string) error {
 		StartCursor: "",
 		PageSize:    100,
 	}
+	completed := make(chan string, len(songIDs))
 	for _, songID := range songIDs {
-		upToDateSong, err := sdb.client.Page.Get(context.Background(), notionapi.PageID(songID))
-		if err != nil {
-			continue
-		}
-		isUpdated := upToDateSong.LastEditedTime.After(sdb.Songs[songID].updatedAt)
-		_, hasLyrics := sdb.LyricsBlocks[songID]
+		go (func(songID string) {
+			defer (func() {
+				completed <- songID
+			})()
 
-		if !isUpdated && hasLyrics {
-			continue
-		}
-
-		if isUpdated {
-			sdb.SaveSong(*upToDateSong)
-		}
-
-		response, _ := sdb.client.Block.GetChildren(
-			context.Background(),
-			notionapi.BlockID(songID),
-			&pagination,
-		)
-
-		if response == nil {
-			return nil
-		}
-
-		lyrics := make([]string, 0)
-
-		for _, block := range response.Results {
-			if block.GetType() != "paragraph" {
-				continue
+			upToDateSong, err := sdb.client.Page.Get(context.Background(), notionapi.PageID(songID))
+			if err != nil {
+				return
 			}
-			lyricsBlock := block.(*notionapi.ParagraphBlock)
-			lyrics = append(lyrics, extractText(lyricsBlock.Paragraph.Text))
-		}
-		sdb.LyricsBlocks[songID] = lyrics
+			isUpdated := upToDateSong.LastEditedTime.After(sdb.Songs[songID].updatedAt)
+			_, hasLyrics := sdb.LyricsBlocks[songID]
+
+			if !isUpdated && hasLyrics {
+				return
+			}
+
+			if isUpdated {
+				sdb.SaveSong(*upToDateSong)
+			}
+
+			response, _ := sdb.client.Block.GetChildren(
+				context.Background(),
+				notionapi.BlockID(songID),
+				&pagination,
+			)
+
+			if response == nil {
+				return
+			}
+
+			lyrics := make([]string, 0)
+
+			for _, block := range response.Results {
+				if block.GetType() != "paragraph" {
+					continue
+				}
+				lyricsBlock := block.(*notionapi.ParagraphBlock)
+				lyrics = append(lyrics, extractText(lyricsBlock.Paragraph.Text))
+			}
+			sdb.LyricsBlocks[songID] = lyrics
+		})(songID)
+	}
+
+	for range songIDs {
+		<-completed
 	}
 
 	return nil
