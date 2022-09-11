@@ -23,6 +23,7 @@ var verseName = regexp.MustCompile(`^\[(\w+)\]\s+`)
 var verseRef = regexp.MustCompile(`^%(\w+)$`)
 var numberQueryRegexp = regexp.MustCompile(`^\d`)
 
+const subtitleSeparator = " / "
 const commentSymbol = "//"
 const lineBreakSymbol = " * "
 
@@ -32,6 +33,7 @@ const hintEndTag = "</hint>"
 type Song struct {
 	Id         string `json:"id"`
 	Title      string `json:"title"`
+	Subtitle   string `json:"subtitle,omitempty"`
 	Number     string `json:"number"`
 	Tags       string `json:"-"`
 	Slug       string `json:"slug"`
@@ -68,6 +70,16 @@ func slugify(text string) string {
 	text = strings.Trim(text, " ")
 
 	return text
+}
+
+func splitTitle(fullTitle string) (string, string) {
+	titleSplit := strings.SplitN(fullTitle, subtitleSeparator, 2)
+
+	if len(titleSplit) == 2 {
+		return titleSplit[0], titleSplit[1]
+	}
+
+	return fullTitle, ""
 }
 
 func joinTags(tags notionapi.MultiSelectProperty) string {
@@ -129,17 +141,20 @@ func (sdb *SongsDB) Initialize(authToken string, databaseId string) error {
 
 func (sdb SongsDB) SaveSong(song notionapi.Page) {
 	pageID := song.ID.String()
-	title := extractText(song.Properties[propertyNameTitle].(*notionapi.TitleProperty).Title)
+	fullTitle := extractText(song.Properties[propertyNameTitle].(*notionapi.TitleProperty).Title)
 	number := extractText(song.Properties[propertyNameNumber].(*notionapi.RichTextProperty).RichText)
+
+	title, subtitle := splitTitle(fullTitle)
 	tags := joinTags(*song.Properties[propertyNameTags].(*notionapi.MultiSelectProperty))
 	numberChapter, numberItem := parseNumber(number)
 
 	sdb.Songs[pageID] = Song{
 		Id:         pageID,
 		Title:      title,
+		Subtitle:   subtitle,
 		Number:     number,
 		Tags:       tags,
-		Slug:       fmt.Sprintf("%s|%s|%s", slugify(title), number, slugify(tags)),
+		Slug:       fmt.Sprintf("%s|%s|%s", slugify(fullTitle), number, slugify(tags)),
 		IsOrdinary: strings.Contains(tags, ordinaryTag),
 
 		numberChapter: numberChapter,
