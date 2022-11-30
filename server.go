@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -14,7 +15,8 @@ type DeckResult struct {
 
 func getPublicURL(c *gin.Context, fileName string) string {
 	scheme := "https"
-	return fmt.Sprintf("%s://%s/public/%s", scheme, c.Request.Host, fileName)
+	nonce := rand.Float64()
+	return fmt.Sprintf("%s://%s/public/%s?v=%f", scheme, c.Request.Host, fileName, nonce)
 }
 
 func corsMiddleware(c *gin.Context) {
