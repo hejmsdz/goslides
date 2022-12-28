@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"regexp"
+	"strings"
 )
 
 type Deck struct {
@@ -86,7 +87,14 @@ func (d Deck) ToTextSlides(songsDB SongsDB, liturgyDB LiturgyDB) ([][]string, bo
 			}
 			slides = append(slides, lyrics)
 		} else if item.Type == PSALM && liturgyOk {
-			slides = append(slides, []string{liturgy.Psalm})
+			alleluiaticSuffix := ", albo: Alleluja"
+			isAlleluiatic := strings.HasSuffix(liturgy.Psalm, alleluiaticSuffix)
+			if isAlleluiatic {
+				plainPsalm := strings.Replace(liturgy.Psalm, alleluiaticSuffix, "", 1)
+				slides = append(slides, []string{plainPsalm, "Alleluja"})
+			} else {
+				slides = append(slides, []string{liturgy.Psalm})
+			}
 		} else if item.Type == ACCLAMATION && liturgyOk {
 			fullAcclamation := fmt.Sprintf("%s\n\n%s\n\n%s",
 				liturgy.Acclamation,

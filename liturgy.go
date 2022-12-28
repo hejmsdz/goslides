@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/andybalholm/cascadia"
 	"golang.org/x/net/html"
@@ -57,7 +58,7 @@ func getPsalm(doc *html.Node) (string, bool) {
 		return "", false
 	}
 
-	return node.FirstChild.Data, true
+	return strings.TrimSpace(node.FirstChild.Data), true
 }
 
 func getAcclamation(doc *html.Node) (string, string, bool) {
@@ -88,7 +89,7 @@ func getAcclamation(doc *html.Node) (string, string, bool) {
 		}
 	}
 
-	return alleluia, verse, true
+	return strings.TrimSpace(alleluia), strings.TrimSpace(verse), true
 }
 
 func GetLiturgy(date string) (Liturgy, bool) {
