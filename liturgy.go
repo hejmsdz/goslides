@@ -32,15 +32,15 @@ func getAttributeValue(node *html.Node, key string) string {
 }
 
 func findTabId(doc *html.Node, label string) string {
-	rootTabSelector, _ := cascadia.Parse("article > .nav-tabs li:first-child a")
+	rootTabSelector, _ := cascadia.Parse("article > .nav-tabs li:first-child button")
 	rootTab := cascadia.Query(doc, rootTabSelector)
-	rootTabId := getAttributeValue(rootTab, "href")
+	rootTabId := getAttributeValue(rootTab, "data-bs-target")
 
-	tabSelector, _ := cascadia.Parse(fmt.Sprintf("%s a[data-toggle=tab]", rootTabId))
+	tabSelector, _ := cascadia.Parse(fmt.Sprintf("%s ul[role=tablist] li button", rootTabId))
 	tabs := cascadia.QueryAll(doc, tabSelector)
 	for _, tab := range tabs {
 		if tab.FirstChild.Data == label {
-			return getAttributeValue(tab, "href")
+			return getAttributeValue(tab, "data-bs-target")
 		}
 	}
 	return ""
@@ -95,7 +95,7 @@ func getAcclamation(doc *html.Node) (string, string, bool) {
 func GetLiturgy(date string) (Liturgy, bool) {
 	liturgy := Liturgy{}
 
-	url := fmt.Sprintf("https://niezbednik.niedziela.pl/liturgia/%s", date)
+	url := fmt.Sprintf("https://niezbednik.niedziela.pl/site/liturgia?data=%s", date)
 	res, err := http.Get(url)
 	if err != nil {
 		return liturgy, false
