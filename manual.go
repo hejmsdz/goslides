@@ -33,7 +33,7 @@ func GetManual(authToken string, manualPageID string) (Manual, bool) {
 		switch block.GetType() {
 		case notionapi.BlockTypeNumberedListItem:
 			itemBlock := block.(*notionapi.NumberedListItemBlock)
-			m.Steps = append(m.Steps, extractText(itemBlock.NumberedListItem.Text))
+			m.Steps = append(m.Steps, extractText(itemBlock.NumberedListItem.RichText))
 		case notionapi.BlockTypeImage:
 			imageBlock := block.(*notionapi.ImageBlock)
 			m.Image = imageBlock.Image.File.URL

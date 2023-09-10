@@ -110,11 +110,9 @@ func (sdb *SongsDB) Initialize(authToken string, databaseId string) error {
 	sdb.LyricsBlocks = make(map[string][]string, 0)
 
 	query := notionapi.DatabaseQueryRequest{
-		PropertyFilter: nil,
-		CompoundFilter: nil,
-		Sorts:          make([]notionapi.SortObject, 0),
-		StartCursor:    notionapi.Cursor(""),
-		PageSize:       100,
+		Sorts:       make([]notionapi.SortObject, 0),
+		StartCursor: notionapi.Cursor(""),
+		PageSize:    100,
 	}
 
 	for {
@@ -239,7 +237,7 @@ func (sdb SongsDB) LoadMissingVerses(songIDs []string) error {
 					continue
 				}
 				lyricsBlock := block.(*notionapi.ParagraphBlock)
-				lyrics = append(lyrics, extractText(lyricsBlock.Paragraph.Text))
+				lyrics = append(lyrics, extractText(lyricsBlock.Paragraph.RichText))
 			}
 			sdb.LyricsBlocks[songID] = lyrics
 		})(songID)
