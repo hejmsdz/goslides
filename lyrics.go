@@ -236,8 +236,12 @@ func (sdb SongsDB) LoadMissingVerses(songIDs []string) error {
 				if block.GetType() != "paragraph" {
 					continue
 				}
+
 				lyricsBlock := block.(*notionapi.ParagraphBlock)
-				lyrics = append(lyrics, extractText(lyricsBlock.Paragraph.RichText))
+				text := extractText(lyricsBlock.Paragraph.RichText)
+				if text != "" {
+					lyrics = append(lyrics, text)
+				}
 			}
 			sdb.LyricsBlocks[songID] = lyrics
 		})(songID)
@@ -250,40 +254,75 @@ func (sdb SongsDB) LoadMissingVerses(songIDs []string) error {
 	return nil
 }
 
-func (sdb SongsDB) GetLyrics(songID string, hints bool) ([]string, bool) {
+type GetLyricsOptions struct {
+	Hints bool
+	Raw   bool
+	Order []int
+}
+
+func (sdb SongsDB) GetLyrics(songID string, options GetLyricsOptions) ([]string, bool) {
 	hasAllVerses := true
 
-	if _, ok := sdb.LyricsBlocks[songID]; !ok {
+	verses, ok := sdb.LyricsBlocks[songID]
+	if !ok {
 		return nil, false
 	}
 
 	lyrics := make([]string, 0)
 	namedVerses := make(map[string]string)
 	song := sdb.Songs[songID]
-	if hints {
+	if options.Hints {
 		hint := song.Number
 		if utfTitle := []rune(song.Title); hint == "" && len(utfTitle) >= 2 {
 			hint = string(utfTitle[0:2])
 		}
 		lyrics = append(lyrics, hintStartTag+hint+hintEndTag)
 	}
-	for _, verse := range sdb.LyricsBlocks[songID] {
-		if match := verseRef.FindStringSubmatch(verse); match != nil {
-			name := match[1]
-			if namedVerse, ok := namedVerses[name]; ok {
-				verse = namedVerse
+
+	var order []int
+	if options.Order == nil {
+		order = make([]int, len(verses))
+		for i := range verses {
+			order[i] = i
+		}
+	} else {
+		order = options.Order
+	}
+
+	for _, index := range order {
+		if index >= len(verses) {
+			continue
+		}
+		verse := verses[index]
+
+		if !options.Raw {
+			if strings.HasPrefix(verse, commentSymbol) {
+				if options.Order == nil {
+					// if order is not given, skip commented out verses
+					continue
+				}
+
+				// but if order is given, the verse is included deliberately and comment symbol should be ignored
+				verse = strings.TrimPrefix(verse, commentSymbol)
+				verse = strings.TrimLeft(verse, " ")
 			}
-		} else {
-			verse = strings.ReplaceAll(verse, lineBreakSymbol, "\n")
-			if match := verseName.FindStringSubmatch(verse); match != nil {
+
+			if match := verseRef.FindStringSubmatch(verse); match != nil {
 				name := match[1]
-				verse = verse[len(match[0]):]
-				namedVerses[name] = verse
+				if namedVerse, ok := namedVerses[name]; ok {
+					verse = namedVerse
+				}
+			} else {
+				verse = strings.ReplaceAll(verse, lineBreakSymbol, "\n")
+				if match := verseName.FindStringSubmatch(verse); match != nil {
+					name := match[1]
+					verse = verse[len(match[0]):]
+					namedVerses[name] = verse
+				}
 			}
 		}
-		if verse != "" && !strings.HasPrefix(verse, commentSymbol) {
-			lyrics = append(lyrics, verse)
-		}
+
+		lyrics = append(lyrics, verse)
 	}
 
 	return lyrics, hasAllVerses

@@ -18,6 +18,7 @@ type DeckItem struct {
 	ID       string   `json:"id"`
 	Type     string   `json:"type"`
 	Contents []string `json:"contents"`
+	Order    []int    `json:"order"`
 }
 
 var dateRegexp = regexp.MustCompile(`^20\d\d-[0-1]\d-[0-3]\d$`)
@@ -81,7 +82,7 @@ func (d Deck) ToTextSlides(songsDB SongsDB, liturgyDB LiturgyDB) ([][]string, bo
 	slides := make([][]string, 0)
 	for _, item := range d.Items {
 		if item.ID != "" {
-			lyrics, ok := songsDB.GetLyrics(item.ID, d.Hints)
+			lyrics, ok := songsDB.GetLyrics(item.ID, GetLyricsOptions{Hints: d.Hints, Order: item.Order})
 			if !ok {
 				return slides, false
 			}

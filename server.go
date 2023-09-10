@@ -52,8 +52,9 @@ func (srv Server) getSongs(c *gin.Context) {
 
 func (srv Server) getLyrics(c *gin.Context) {
 	id := c.Param("id")
+	raw := c.Query("raw") == "1"
 	srv.songsDB.LoadMissingVerses([]string{id})
-	lyrics, _ := srv.songsDB.GetLyrics(id, false)
+	lyrics, _ := srv.songsDB.GetLyrics(id, GetLyricsOptions{Hints: false, Raw: raw})
 
 	if lyrics == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Song ID not found"})
