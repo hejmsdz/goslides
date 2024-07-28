@@ -6,6 +6,7 @@ go 1.16
 
 require (
 	github.com/andybalholm/cascadia v1.2.0
+	github.com/gen2brain/go-fitz v1.23.7 // indirect
 	github.com/gin-gonic/gin v1.8.1
 	github.com/go-playground/validator/v10 v10.11.0 // indirect
 	github.com/goccy/go-json v0.9.11 // indirect

@@ -96,16 +96,33 @@ func (srv Server) postDeck(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get lyrics"})
 		return
 	}
-	pdf, err := BuildPDF(textDeck, deck.GetPageConfig())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+
+	var deckResult DeckResult
+	switch deck.Format {
+	case "png+zip":
+		zip, err := BuildImages(textDeck, deck.GetPageConfig())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		zipName := deck.Date + ".zip"
+		SaveTemporaryFile(zip, zipName)
+		deckResult = DeckResult{getPublicURL(c, zipName)}
+
+	default:
+		pdf, err := BuildPDF(textDeck, deck.GetPageConfig())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		pdfName := deck.Date + ".pdf"
+		SaveTemporaryPDF(pdf, pdfName)
+
+		deckResult = DeckResult{getPublicURL(c, pdfName)}
 	}
 
-	pdfName := deck.Date + ".pdf"
-	SaveTemporaryPDF(pdf, pdfName)
-
-	deckResult := DeckResult{getPublicURL(c, pdfName)}
 	c.JSON(http.StatusOK, deckResult)
 }
 
