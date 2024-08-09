@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math"
 	"strings"
 )
 
@@ -17,6 +18,23 @@ func BreakLongLines(lines []string, measure Measurer, contentWidth float64) []st
 			wordSplit = strings.ReplaceAll(wordSplit, "~", " ")
 			result = append(result, wordSplit)
 		}
+	}
+
+	return result
+}
+
+func SplitLongSlide(lines []string, maxLines int) [][]string {
+	result := make([][]string, 0)
+	numLines := len(lines)
+
+	slidesToSplitInto := int(math.Ceil(float64(numLines) / float64(maxLines)))
+	linesPerSlide := int(math.Ceil(float64(numLines) / float64(slidesToSplitInto)))
+
+	for i := 0; i < slidesToSplitInto; i++ {
+		startIdx := linesPerSlide * i
+		endIdx := min(linesPerSlide*(i+1), numLines)
+		linesSlice := lines[startIdx:endIdx]
+		result = append(result, linesSlice)
 	}
 
 	return result

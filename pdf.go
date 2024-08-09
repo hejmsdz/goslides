@@ -20,11 +20,16 @@ type PageConfig struct {
 type PdfSlides struct {
 	pageConfig PageConfig
 	goPdf      *gopdf.GoPdf
+	lineHeight float64
+	maxLines   int
 }
 
 func (pdf *PdfSlides) Initialize(pageConfig PageConfig) error {
 	pdf.pageConfig = pageConfig
 	pdf.goPdf = &gopdf.GoPdf{}
+
+	pdf.lineHeight = float64(pdf.pageConfig.FontSize) * pdf.pageConfig.LineSpacing
+	pdf.maxLines = int(pageConfig.PageHeight / pdf.lineHeight)
 
 	pageSize := gopdf.Rect{W: pageConfig.PageWidth, H: pageConfig.PageHeight}
 
@@ -59,18 +64,39 @@ func (pdf *PdfSlides) writeCenteredLine(text string) error {
 	return pdf.goPdf.Cell(nil, text)
 }
 
-func (pdf *PdfSlides) writeCenteredParagraph(text string) error {
+func (pdf *PdfSlides) writeVerse(text string) error {
 	contentWidth := pdf.pageConfig.PageWidth - 2*pdf.pageConfig.Margin
 	pdf.goPdf.SetFont("default", "", pdf.pageConfig.FontSize)
 	lines := strings.Split(text, "\n")
 	lines = BreakLongLines(lines, pdf.goPdf.MeasureTextWidth, contentWidth)
 	numLines := len(lines)
-	lineHeight := float64(pdf.pageConfig.FontSize) * pdf.pageConfig.LineSpacing
-	paragraphHeight := float64(numLines) * lineHeight
+
+	if numLines <= pdf.maxLines {
+		return pdf.writeCenteredParagraph(lines)
+	}
+
+	subPages := SplitLongSlide(lines, pdf.maxLines)
+
+	for i, linesSlice := range subPages {
+		if i > 0 {
+			pdf.addPage()
+		}
+
+		err := pdf.writeCenteredParagraph(linesSlice)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (pdf *PdfSlides) writeCenteredParagraph(lines []string) error {
+	paragraphHeight := float64(len(lines)) * pdf.lineHeight
 	y0 := (pdf.pageConfig.PageHeight - paragraphHeight) / 2
 
 	for index, line := range lines {
-		y := y0 + float64(index)*lineHeight
+		y := y0 + float64(index)*pdf.lineHeight
 		pdf.goPdf.SetY(y)
 		err := pdf.writeCenteredLine(line)
 		if err != nil {
@@ -137,7 +163,7 @@ func BuildPDF(textDeck [][]string, pageConfig PageConfig) (*gopdf.GoPdf, error) 
 				continue
 			}
 
-			err := pdf.writeCenteredParagraph(verse)
+			err := pdf.writeVerse(verse)
 			if err != nil {
 				return nil, err
 			}
