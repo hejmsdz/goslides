@@ -69,11 +69,6 @@ func (pdf *PdfSlides) writeVerse(text string) error {
 	pdf.goPdf.SetFont("default", "", pdf.pageConfig.FontSize)
 	lines := strings.Split(text, "\n")
 	lines = BreakLongLines(lines, pdf.goPdf.MeasureTextWidth, contentWidth)
-	numLines := len(lines)
-
-	if numLines <= pdf.maxLines {
-		return pdf.writeCenteredParagraph(lines)
-	}
 
 	subPages := SplitLongSlide(lines, pdf.maxLines)
 

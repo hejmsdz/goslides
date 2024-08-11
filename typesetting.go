@@ -1,7 +1,6 @@
 package main
 
 import (
-	"math"
 	"strings"
 )
 
@@ -23,18 +22,38 @@ func BreakLongLines(lines []string, measure Measurer, contentWidth float64) []st
 	return result
 }
 
+var possiblePageBreakMarkers = map[string]int{
+	",": 1,
+	":": 1,
+	".": 2,
+	"?": 2,
+	"!": 2,
+}
+
 func SplitLongSlide(lines []string, maxLines int) [][]string {
 	result := make([][]string, 0)
 	numLines := len(lines)
 
-	slidesToSplitInto := int(math.Ceil(float64(numLines) / float64(maxLines)))
-	linesPerSlide := int(math.Ceil(float64(numLines) / float64(slidesToSplitInto)))
+	if numLines <= maxLines {
+		result = append(result, lines)
+		return result
+	}
 
-	for i := 0; i < slidesToSplitInto; i++ {
-		startIdx := linesPerSlide * i
-		endIdx := min(linesPerSlide*(i+1), numLines)
-		linesSlice := lines[startIdx:endIdx]
+	for len(lines) > 0 {
+		lineIndexToBreakOn := min(maxLines, len(lines)) - 1
+		currentLinePriority := 0
+		for i := lineIndexToBreakOn; i > 0; i-- {
+			for marker, priority := range possiblePageBreakMarkers {
+				if priority > currentLinePriority && strings.HasSuffix(lines[i], marker) {
+					lineIndexToBreakOn = i
+					currentLinePriority = priority
+				}
+			}
+		}
+		endIdx := lineIndexToBreakOn + 1
+		linesSlice := lines[0:endIdx]
 		result = append(result, linesSlice)
+		lines = lines[endIdx:]
 	}
 
 	return result
