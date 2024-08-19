@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -145,6 +147,83 @@ func (srv Server) postUpdateRelease(c *gin.Context) {
 	c.Writer.WriteHeader(http.StatusNoContent)
 }
 
+func (srv Server) putLive(c *gin.Context) {
+	name := c.Param("name")
+
+	var ls LiveSession
+	if err := c.ShouldBind(&ls); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	prevLs, exists := LiveSessions[name]
+	if exists {
+		prevLs.ReplaceDeck(ls.Deck, ls.CurrentPage)
+	} else {
+		LiveSessions[name] = &ls
+	}
+
+	c.JSON(http.StatusOK, gin.H{})
+}
+
+func (srv Server) getLive(c *gin.Context) {
+	name := c.Param("name")
+
+	ls, ok := LiveSessions[name]
+
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Live session not found"})
+		return
+	}
+
+	headers := c.Writer.Header()
+	headers.Set("Content-Type", "text/event-stream")
+	headers.Set("Cache-Control", "no-cache")
+	headers.Set("Connection", "keep-alive")
+	headers.Set("Transfer-Encoding", "chunked")
+
+	stream := ls.AddMember()
+
+	c.Stream(func(w io.Writer) bool {
+		c.SSEvent("start", ls)
+
+		return false
+	})
+
+	c.Stream(func(w io.Writer) bool {
+		select {
+		case event, ok := <-stream:
+			if !ok {
+				return false
+			}
+
+			c.SSEvent(event.Type, event.Data)
+			return true
+		case <-c.Request.Context().Done():
+			ls.RemoveMember(stream)
+			return false
+		}
+	})
+}
+
+func (srv Server) postLivePage(c *gin.Context) {
+	name := c.Param("name")
+	ls, ok := LiveSessions[name]
+
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Live session not found"})
+		return
+	}
+
+	page, err := strconv.Atoi(c.Query("page"))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Page number not valid"})
+		return
+	}
+
+	ls.ChangePage(page)
+}
+
 func (srv Server) Run() {
 	r := gin.Default()
 	r.Use(corsMiddleware)
@@ -158,5 +237,8 @@ func (srv Server) Run() {
 	v2.POST("/deck", srv.postDeck)
 	v2.POST("/reload", srv.postReload)
 	v2.POST("/update_release", srv.postUpdateRelease)
+	v2.PUT("/live/:name", srv.putLive)
+	v2.GET("/live/:name", srv.getLive)
+	v2.POST("/live/:name/page", srv.postLivePage)
 	r.Run(srv.addr)
 }
