@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math"
 	"strings"
 )
 
@@ -13,7 +14,7 @@ func BreakLongLines(lines []string, measure Measurer, contentWidth float64) []st
 		line = strings.Trim(line, " ")
 		line = preventAwkwardLineBreaks(line)
 
-		for _, wordSplit := range breakOnSpaces(line, measure, contentWidth) {
+		for _, wordSplit := range BreakOnSpaces(line, measure, contentWidth) {
 			wordSplit = strings.ReplaceAll(wordSplit, "~", " ")
 			result = append(result, wordSplit)
 		}
@@ -22,12 +23,28 @@ func BreakLongLines(lines []string, measure Measurer, contentWidth float64) []st
 	return result
 }
 
+const LineEndMark = "\u200d"
+
 var possiblePageBreakMarkers = map[string]int{
+	"": 1,
 	",": 1,
 	":": 1,
+	";": 1,
 	".": 2,
 	"?": 2,
 	"!": 2,
+}
+
+func removeLineEndMarks(lines []string) []string {
+	result := make([]string, len(lines))
+	for i, line := range lines {
+		if cutLine, didCut := strings.CutSuffix(line, LineEndMark); didCut {
+			result[i] = cutLine
+		} else {
+			result[i] = line
+		}
+	}
+	return result
 }
 
 func SplitLongSlide(lines []string, maxLines int) [][]string {
@@ -35,7 +52,7 @@ func SplitLongSlide(lines []string, maxLines int) [][]string {
 	numLines := len(lines)
 
 	if numLines <= maxLines {
-		result = append(result, lines)
+		result = append(result, removeLineEndMarks(lines))
 		return result
 	}
 
@@ -44,7 +61,7 @@ func SplitLongSlide(lines []string, maxLines int) [][]string {
 		currentLinePriority := 0
 		for i := lineIndexToBreakOn; i > 0; i-- {
 			for marker, priority := range possiblePageBreakMarkers {
-				if priority > currentLinePriority && strings.HasSuffix(lines[i], marker) {
+				if priority > currentLinePriority && strings.HasSuffix(lines[i], marker + LineEndMark) {
 					lineIndexToBreakOn = i
 					currentLinePriority = priority
 				}
@@ -52,7 +69,7 @@ func SplitLongSlide(lines []string, maxLines int) [][]string {
 		}
 		endIdx := lineIndexToBreakOn + 1
 		linesSlice := lines[0:endIdx]
-		result = append(result, linesSlice)
+		result = append(result, removeLineEndMarks(linesSlice))
 		lines = lines[endIdx:]
 	}
 
@@ -79,14 +96,15 @@ func preventAwkwardLineBreaks(text string) string {
 	return result
 }
 
-func breakOnSpaces(line string, measure Measurer, contentWidth float64) []string {
-	return breakLine(line, measure, contentWidth, " ")
+func BreakOnSpaces(line string, measure Measurer, contentWidth float64) []string {
+	return breakLine(line + LineEndMark, measure, contentWidth, " ")
 }
 
 func breakLine(line string, measure Measurer, contentWidth float64, separator string) []string {
 	result := make([]string, 0)
 
-	if lineWidth, _ := measure(line); lineWidth <= contentWidth {
+	lineWidth, _ := measure(line)
+	if lineWidth <= contentWidth {
 		result = append(result, line)
 		return result
 	}
@@ -99,6 +117,14 @@ func breakLine(line string, measure Measurer, contentWidth float64, separator st
 		fragment := strings.Join(words[start:end], "")
 		fragment = strings.Trim(fragment, " ")
 		fragmentWidth, _ := measure(fragment)
+		remainingFragmentWidth := lineWidth - fragmentWidth
+
+		canBreakInTwoLines := start == 0 && fragmentWidth <= contentWidth && remainingFragmentWidth <= contentWidth
+
+		if canBreakInTwoLines {
+			return breakLineInTwo(words, measure, contentWidth, separator)
+		}
+
 		if fragmentWidth <= contentWidth {
 			result = append(result, fragment)
 			start = end
@@ -114,4 +140,32 @@ func breakLine(line string, measure Measurer, contentWidth float64, separator st
 	}
 
 	return result
+}
+
+func breakLineInTwo(words []string, measure Measurer, contentWidth float64, separator string) []string {
+	firstLine := ""
+	secondLine := strings.Join(words, "")
+	minDiff := math.Inf(+1)
+	i := 0
+
+	for ; i < len(words); i++ {
+		firstLine += separator + words[i]
+		firstLine = strings.Trim(firstLine, " ")
+		firstLineWidth,_ := measure(firstLine)
+
+		secondLine = secondLine[len(words[i]):]
+		secondLine = strings.Trim(secondLine, " ")
+		secondLineWidth,_ := measure(secondLine)
+
+		diff := math.Abs(firstLineWidth - secondLineWidth)
+		if diff < minDiff {
+			minDiff = diff
+		} else {
+			firstLine = firstLine[0:len(firstLine)-len(words[i])]
+			secondLine = words[i] + secondLine
+			break
+		}
+	}
+
+	return []string{ firstLine, secondLine }
 }

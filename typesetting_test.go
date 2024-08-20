@@ -4,15 +4,31 @@ import (
 	"testing"
 )
 
+func TestBreakOnSpaces(t *testing.T) {
+	longLine := "Chleb niebiański dał nam Pan"
+	measureText := func(s string) (float64, error) {
+		return float64(len(s)), nil
+	}
+	contentWidth := 25.0
+
+	result := BreakOnSpaces(longLine, measureText, contentWidth)
+	if len(result) != 2 {
+		t.Errorf("Expected the line to be broken into 2 lines")
+	}
+	if result[0] != "Chleb niebiański" || result[1] != "dał nam Pan"+LineEndMark {
+		t.Errorf("Unexpected line break")
+	}
+}
+
 var lines = []string{
-	"Lorem",
-	"Ipsum",
-	"Dolor.",
-	"Sit",
-	"Amet,",
-	"Consectetur?",
-	"Adipiscing",
-	"Elit!",
+	"Lorem" + LineEndMark,
+	"Ipsum" + LineEndMark,
+	"Dolor." + LineEndMark,
+	"Sit" + LineEndMark,
+	"Amet," + LineEndMark,
+	"Consectetur?" + LineEndMark,
+	"Adipiscing" + LineEndMark,
+	"Elit!" + LineEndMark,
 }
 
 func TestSplitLongSlide5(t *testing.T) {
