@@ -47,6 +47,16 @@ func removeLineEndMarks(lines []string) []string {
 	return result
 }
 
+func countFullLines(lines []string) int {
+	numFullLines := 0
+	for _, line := range lines {
+		if strings.HasSuffix(line, LineEndMark){
+			numFullLines++
+		}
+	}
+	return numFullLines
+}
+
 func SplitLongSlide(lines []string, maxLines int) [][]string {
 	result := make([][]string, 0)
 	numLines := len(lines)
@@ -62,8 +72,12 @@ func SplitLongSlide(lines []string, maxLines int) [][]string {
 		for i := lineIndexToBreakOn; i > 0; i-- {
 			for marker, priority := range possiblePageBreakMarkers {
 				if priority > currentLinePriority && strings.HasSuffix(lines[i], marker + LineEndMark) {
-					lineIndexToBreakOn = i
-					currentLinePriority = priority
+					// don't leave a single line (original, before line breaking) on the next slide
+					remainingLines := lines[i+1:]
+					if (len(remainingLines) == 0 || countFullLines(remainingLines) > 1) {
+						lineIndexToBreakOn = i
+						currentLinePriority = priority
+					}
 				}
 			}
 		}
