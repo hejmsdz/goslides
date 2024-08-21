@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -115,6 +116,14 @@ func (srv Server) postDeck(c *gin.Context) {
 		zipName := deck.Date + ".zip"
 		SaveTemporaryFile(zip, zipName)
 		deckResult = DeckResult{getPublicURL(c, zipName)}
+
+	case "txt":
+		text := Tugalize(textDeck)
+
+		txtName := deck.Date + ".txt"
+		textReader := strings.NewReader(text)
+		SaveTemporaryFile(textReader, txtName)
+		deckResult = DeckResult{getPublicURL(c, txtName)}
 
 	default:
 		pdf, err := BuildPDF(textDeck, deck.GetPageConfig())
