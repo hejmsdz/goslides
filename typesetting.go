@@ -72,9 +72,10 @@ func SplitLongSlide(lines []string, maxLines int) [][]string {
 		for i := lineIndexToBreakOn; i > 0; i-- {
 			for marker, priority := range possiblePageBreakMarkers {
 				if priority > currentLinePriority && strings.HasSuffix(lines[i], marker + LineEndMark) {
-					// don't leave a single line (original, before line breaking) on the next slide
+					// don't leave a single line (original, before line breaking) on the next slide,
+					// unless a single line would remain on the slide before
 					remainingLines := lines[i+1:]
-					if (len(remainingLines) == 0 || countFullLines(remainingLines) > 1) {
+					if (len(remainingLines) == 0 || countFullLines(remainingLines) > 1 || countFullLines(lines[0:i]) == 1) {
 						lineIndexToBreakOn = i
 						currentLinePriority = priority
 					}
