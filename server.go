@@ -15,10 +15,14 @@ type DeckResult struct {
 	URL string `json:"url"`
 }
 
-func getPublicURL(c *gin.Context, fileName string) string {
+func getURL(c *gin.Context, path string) string {
 	scheme := "https"
+	return fmt.Sprintf("%s://%s/%s", scheme, c.Request.Host, path)
+}
+
+func getPublicURL(c *gin.Context, fileName string) string {
 	nonce := rand.Float64()
-	return fmt.Sprintf("%s://%s/public/%s?v=%f", scheme, c.Request.Host, fileName, nonce)
+	return getURL(c, fmt.Sprintf("public/%s?v=%f", fileName, nonce))
 }
 
 func corsMiddleware(c *gin.Context) {
@@ -148,7 +152,7 @@ func (srv Server) postUpdateRelease(c *gin.Context) {
 }
 
 func (srv Server) putLive(c *gin.Context) {
-	name := c.Param("name")
+	name := "session" // c.Param("name")
 
 	var ls LiveSession
 	if err := c.ShouldBind(&ls); err != nil {
@@ -163,7 +167,9 @@ func (srv Server) putLive(c *gin.Context) {
 		LiveSessions[name] = &ls
 	}
 
-	c.JSON(http.StatusOK, gin.H{})
+	c.JSON(http.StatusOK, gin.H{
+		"url": getURL(c, "live"),
+	})
 }
 
 func (srv Server) getLive(c *gin.Context) {
