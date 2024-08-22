@@ -22,6 +22,13 @@ type DeckItem struct {
 	Order    []int    `json:"order"`
 }
 
+type ContentSlide struct {
+	Type       string `json:"t"`
+	ItemIndex  int    `json:"i"`
+	VerseIndex int    `json:"v"`
+	ChunkIndex int    `json:"c"`
+}
+
 var dateRegexp = regexp.MustCompile(`^20\d\d-[0-1]\d-[0-3]\d$`)
 
 func (d Deck) IsValid() bool {

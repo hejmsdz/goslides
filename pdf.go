@@ -64,7 +64,7 @@ func (pdf *PdfSlides) writeCenteredLine(text string) error {
 	return pdf.goPdf.Cell(nil, text)
 }
 
-func (pdf *PdfSlides) writeVerse(text string) error {
+func (pdf *PdfSlides) writeVerse(text string) (int, error) {
 	contentWidth := pdf.pageConfig.PageWidth - 2*pdf.pageConfig.Margin
 	pdf.goPdf.SetFont("default", "", pdf.pageConfig.FontSize)
 	lines := strings.Split(text, "\n")
@@ -79,11 +79,11 @@ func (pdf *PdfSlides) writeVerse(text string) error {
 
 		err := pdf.writeCenteredParagraph(linesSlice)
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
 
-	return nil
+	return len(subPages), nil
 }
 
 func (pdf *PdfSlides) writeCenteredParagraph(lines []string) error {
@@ -130,16 +130,19 @@ func (pdf *PdfSlides) drawQrCode(content string) {
 	pdf.writeCenteredLine(content)
 }
 
-func BuildPDF(textDeck [][]string, pageConfig PageConfig) (*gopdf.GoPdf, error) {
+func BuildPDF(textDeck [][]string, pageConfig PageConfig) (*gopdf.GoPdf, []ContentSlide, error) {
 	pdf := PdfSlides{}
 	err := pdf.Initialize(pageConfig)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	for _, song := range textDeck {
+	contents := make([]ContentSlide, 0)
+	contents = append(contents, ContentSlide{Type: "blank", ItemIndex: -1})
+
+	for itemIndex, song := range textDeck {
 		hint := ""
-		for _, verse := range song {
+		for verseIndex, verse := range song {
 			if strings.HasPrefix(verse, hintStartTag) && strings.HasSuffix(verse, hintEndTag) {
 				hint = verse[len(hintStartTag) : len(verse)-len(hintEndTag)]
 				continue
@@ -148,23 +151,35 @@ func BuildPDF(textDeck [][]string, pageConfig PageConfig) (*gopdf.GoPdf, error) 
 			pdf.addPage()
 			if hint != "" {
 				pdf.writeHint(hint)
+				contents = append(contents, ContentSlide{Type: "hint", ItemIndex: itemIndex})
 				hint = ""
 				pdf.addPage()
 			}
 
 			isUrl := strings.HasPrefix(verse, "https://") || strings.HasPrefix(verse, "http://")
 			if isUrl {
+				contents = append(contents, ContentSlide{Type: "qr", ItemIndex: itemIndex})
 				pdf.drawQrCode(verse)
 				continue
 			}
 
-			err := pdf.writeVerse(verse)
+			numChunks, err := pdf.writeVerse(verse)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
+			}
+
+			for i := 0; i < numChunks; i++ {
+				contents = append(contents, ContentSlide{
+					Type:       "verse",
+					ItemIndex:  itemIndex,
+					VerseIndex: verseIndex,
+					ChunkIndex: i,
+				})
 			}
 		}
 		pdf.addPage()
+		contents = append(contents, ContentSlide{Type: "blank", ItemIndex: itemIndex})
 	}
 
-	return pdf.goPdf, nil
+	return pdf.goPdf, contents, nil
 }

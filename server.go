@@ -13,7 +13,8 @@ import (
 )
 
 type DeckResult struct {
-	URL string `json:"url"`
+	URL      string         `json:"url"`
+	Contents []ContentSlide `json:"contents"`
 }
 
 func getURL(c *gin.Context, path string) string {
@@ -107,7 +108,7 @@ func (srv Server) postDeck(c *gin.Context) {
 	var deckResult DeckResult
 	switch deck.Format {
 	case "png+zip":
-		zip, err := BuildImages(textDeck, deck.GetPageConfig())
+		zip, contents, err := BuildImages(textDeck, deck.GetPageConfig())
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -115,7 +116,7 @@ func (srv Server) postDeck(c *gin.Context) {
 
 		zipName := deck.Date + ".zip"
 		SaveTemporaryFile(zip, zipName)
-		deckResult = DeckResult{getPublicURL(c, zipName)}
+		deckResult = DeckResult{getPublicURL(c, zipName), contents}
 
 	case "txt":
 		text := Tugalize(textDeck)
@@ -123,10 +124,10 @@ func (srv Server) postDeck(c *gin.Context) {
 		txtName := deck.Date + ".txt"
 		textReader := strings.NewReader(text)
 		SaveTemporaryFile(textReader, txtName)
-		deckResult = DeckResult{getPublicURL(c, txtName)}
+		deckResult = DeckResult{getPublicURL(c, txtName), []ContentSlide{}}
 
 	default:
-		pdf, err := BuildPDF(textDeck, deck.GetPageConfig())
+		pdf, contents, err := BuildPDF(textDeck, deck.GetPageConfig())
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -135,7 +136,11 @@ func (srv Server) postDeck(c *gin.Context) {
 		pdfName := deck.Date + ".pdf"
 		SaveTemporaryPDF(pdf, pdfName)
 
-		deckResult = DeckResult{getPublicURL(c, pdfName)}
+		deckResult = DeckResult{getPublicURL(c, pdfName), contents}
+	}
+
+	if c.Query("contents") != "1" {
+		deckResult.Contents = nil
 	}
 
 	c.JSON(http.StatusOK, deckResult)
