@@ -13,6 +13,7 @@ type Deck struct {
 	Ratio    string     `json:"ratio"`
 	FontSize int        `json:"fontSize"`
 	Format   string     `json:"format"`
+	Contents bool       `json:"contents"`
 }
 
 type DeckItem struct {

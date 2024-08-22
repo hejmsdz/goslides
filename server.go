@@ -139,7 +139,7 @@ func (srv Server) postDeck(c *gin.Context) {
 		deckResult = DeckResult{getPublicURL(c, pdfName), contents}
 	}
 
-	if c.Query("contents") != "1" {
+	if !deck.Contents {
 		deckResult.Contents = nil
 	}
 
