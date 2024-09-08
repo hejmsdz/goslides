@@ -1,9 +1,9 @@
 package main
 
 import (
+	"crypto/rand"
 	"fmt"
 	"io"
-	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
@@ -23,8 +23,13 @@ func getURL(c *gin.Context, path string) string {
 }
 
 func getPublicURL(c *gin.Context, fileName string) string {
-	nonce := rand.Float64()
-	return getURL(c, fmt.Sprintf("public/%s?v=%f", fileName, nonce))
+	return getURL(c, fmt.Sprintf("public/%s", fileName))
+}
+
+func getRandomString(length int) string {
+	buffer := make([]byte, length)
+	rand.Read(buffer)
+	return fmt.Sprintf("%x", buffer)
 }
 
 func corsMiddleware(c *gin.Context) {
@@ -106,6 +111,7 @@ func (srv Server) postDeck(c *gin.Context) {
 	}
 
 	var deckResult DeckResult
+	uid := getRandomString(6)
 	switch deck.Format {
 	case "png+zip":
 		zip, contents, err := BuildImages(textDeck, deck.GetPageConfig())
@@ -114,14 +120,14 @@ func (srv Server) postDeck(c *gin.Context) {
 			return
 		}
 
-		zipName := deck.Date + ".zip"
+		zipName := uid + ".zip"
 		SaveTemporaryFile(zip, zipName)
 		deckResult = DeckResult{getPublicURL(c, zipName), contents}
 
 	case "txt":
 		text := Tugalize(textDeck)
 
-		txtName := deck.Date + ".txt"
+		txtName := uid + ".txt"
 		textReader := strings.NewReader(text)
 		SaveTemporaryFile(textReader, txtName)
 		deckResult = DeckResult{getPublicURL(c, txtName), []ContentSlide{}}
@@ -133,7 +139,7 @@ func (srv Server) postDeck(c *gin.Context) {
 			return
 		}
 
-		pdfName := deck.Date + ".pdf"
+		pdfName := uid + ".pdf"
 		SaveTemporaryPDF(pdf, pdfName)
 
 		deckResult = DeckResult{getPublicURL(c, pdfName), contents}
