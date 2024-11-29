@@ -1,5 +1,11 @@
 package main
 
+import (
+	"fmt"
+	"math/rand/v2"
+	"time"
+)
+
 type JsonObject map[string]interface{}
 
 type Event struct {
@@ -11,9 +17,25 @@ type LiveSession struct {
 	Deck        Deck `json:"deck"`
 	CurrentPage int  `json:"currentPage"`
 	members     []chan Event
+	token       string
+	expiresAt   time.Time
 }
 
 var LiveSessions = map[string]*LiveSession{}
+
+func GenerateLiveSessionId() string {
+	for {
+		id := fmt.Sprintf("%04d", rand.IntN(10000))
+		if _, ok := LiveSessions[id]; !ok {
+			return id
+		}
+	}
+}
+
+func (ls *LiveSession) Initialize() {
+	ls.token = getRandomString(16)
+	ls.ExtendTime()
+}
 
 func (ls *LiveSession) ReplaceDeck(deck Deck, currentPage int) {
 	ls.Deck = deck
@@ -22,6 +44,10 @@ func (ls *LiveSession) ReplaceDeck(deck Deck, currentPage int) {
 	for _, member := range ls.members {
 		member <- Event{"start", JsonObject{"deck": deck, "currentPage": currentPage}}
 	}
+}
+
+func (ls *LiveSession) ExtendTime() {
+	ls.expiresAt = time.Now().Add(2 * time.Hour)
 }
 
 func (ls *LiveSession) ChangePage(currentPage int) {

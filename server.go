@@ -171,8 +171,31 @@ func (srv Server) postUpdateRelease(c *gin.Context) {
 	c.Writer.WriteHeader(http.StatusNoContent)
 }
 
+func createLiveSessionResponse(c *gin.Context, name string, token string) gin.H {
+	return gin.H{
+		"id":    name,
+		"url":   getURL(c, fmt.Sprintf("live#%s", name)),
+		"token": token,
+	}
+}
+
+func (srv Server) postLive(c *gin.Context) {
+	var ls LiveSession
+	if err := c.ShouldBind(&ls); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	name := GenerateLiveSessionId()
+	ls.Initialize()
+	LiveSessions[name] = &ls
+
+	c.JSON(http.StatusOK, createLiveSessionResponse(c, name, ls.token))
+}
+
 func (srv Server) putLive(c *gin.Context) {
-	name := "session" // c.Param("name")
+	name := c.Param("name")
+	token := c.Query("token")
 
 	var ls LiveSession
 	if err := c.ShouldBind(&ls); err != nil {
@@ -182,14 +205,18 @@ func (srv Server) putLive(c *gin.Context) {
 
 	prevLs, exists := LiveSessions[name]
 	if exists {
+		if prevLs.token != token {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			return
+		}
 		prevLs.ReplaceDeck(ls.Deck, ls.CurrentPage)
+		prevLs.ExtendTime()
+		c.JSON(http.StatusOK, createLiveSessionResponse(c, name, prevLs.token))
 	} else {
+		ls.Initialize()
 		LiveSessions[name] = &ls
+		c.JSON(http.StatusOK, createLiveSessionResponse(c, name, ls.token))
 	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"url": getURL(c, "live"),
-	})
 }
 
 func (srv Server) getLive(c *gin.Context) {
@@ -232,12 +259,37 @@ func (srv Server) getLive(c *gin.Context) {
 	})
 }
 
-func (srv Server) postLivePage(c *gin.Context) {
+func (srv Server) deleteLive(c *gin.Context) {
 	name := c.Param("name")
+	token := c.Query("token")
 	ls, ok := LiveSessions[name]
 
 	if !ok {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Live session not found"})
+		return
+	}
+
+	if ls.token != token {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		return
+	}
+
+	delete(LiveSessions, name)
+	c.Writer.WriteHeader(http.StatusNoContent)
+}
+
+func (srv Server) postLivePage(c *gin.Context) {
+	name := c.Param("name")
+	token := c.Query("token")
+	ls, ok := LiveSessions[name]
+
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Live session not found"})
+		return
+	}
+
+	if ls.token != token {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 		return
 	}
 
@@ -248,6 +300,9 @@ func (srv Server) postLivePage(c *gin.Context) {
 	}
 
 	ls.ChangePage(page)
+	ls.ExtendTime()
+
+	c.Writer.WriteHeader(http.StatusNoContent)
 }
 
 func (srv Server) Run() {
@@ -263,8 +318,10 @@ func (srv Server) Run() {
 	v2.POST("/deck", srv.postDeck)
 	v2.POST("/reload", srv.postReload)
 	v2.POST("/update_release", srv.postUpdateRelease)
+	v2.POST("/live", srv.postLive)
 	v2.PUT("/live/:name", srv.putLive)
 	v2.GET("/live/:name", srv.getLive)
+	v2.DELETE("/live/:name", srv.deleteLive)
 	v2.POST("/live/:name/page", srv.postLivePage)
 	r.Run(srv.addr)
 }
