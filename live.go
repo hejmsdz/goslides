@@ -14,11 +14,11 @@ type Event struct {
 }
 
 type LiveSession struct {
-	Deck        Deck `json:"deck"`
-	CurrentPage int  `json:"currentPage"`
-	members     []chan Event
-	token       string
-	expiresAt   time.Time
+	Deck            Deck `json:"deck"`
+	CurrentPage     int  `json:"currentPage"`
+	members         []chan Event
+	token           string
+	expirationTimer *time.Timer
 }
 
 var LiveSessions = map[string]*LiveSession{}
@@ -47,7 +47,17 @@ func (ls *LiveSession) ReplaceDeck(deck Deck, currentPage int) {
 }
 
 func (ls *LiveSession) ExtendTime() {
-	ls.expiresAt = time.Now().Add(2 * time.Hour)
+	if ls.expirationTimer != nil {
+		ls.expirationTimer.Stop()
+	}
+
+	ls.expirationTimer = time.AfterFunc(2*time.Hour, func() {
+		for key, value := range LiveSessions {
+			if value == ls {
+				delete(LiveSessions, key)
+			}
+		}
+	})
 }
 
 func (ls *LiveSession) ChangePage(currentPage int) {
