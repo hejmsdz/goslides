@@ -61,7 +61,7 @@ func (d Deck) GetPageConfig() PageConfig {
 	return PageConfig{
 		PageWidth:    pageWidth,
 		PageHeight:   pageWidth / ratio,
-		Margin:       50,
+		Margin:       8,
 		FontSize:     fontSize,
 		HintFontSize: fontSize * 2 / 3,
 		LineSpacing:  1.3,
