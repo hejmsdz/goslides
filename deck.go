@@ -7,13 +7,14 @@ import (
 )
 
 type Deck struct {
-	Date     string     `json:"date"`
-	Items    []DeckItem `json:"items"`
-	Hints    bool       `json:"hints"`
-	Ratio    string     `json:"ratio"`
-	FontSize int        `json:"fontSize"`
-	Format   string     `json:"format"`
-	Contents bool       `json:"contents"`
+	Date          string     `json:"date"`
+	Items         []DeckItem `json:"items"`
+	Hints         bool       `json:"hints"`
+	Ratio         string     `json:"ratio"`
+	FontSize      int        `json:"fontSize"`
+	VerticalAlign string     `json:"verticalAlign"`
+	Format        string     `json:"format"`
+	Contents      bool       `json:"contents"`
 }
 
 type DeckItem struct {
@@ -59,13 +60,14 @@ func (d Deck) GetPageConfig() PageConfig {
 	pageWidth := 768.0
 
 	return PageConfig{
-		PageWidth:    pageWidth,
-		PageHeight:   pageWidth / ratio,
-		Margin:       8,
-		FontSize:     fontSize,
-		HintFontSize: fontSize * 2 / 3,
-		LineSpacing:  1.3,
-		Font:         "./fonts/source-sans-pro.ttf",
+		PageWidth:     pageWidth,
+		PageHeight:    pageWidth / ratio,
+		Margin:        8,
+		FontSize:      fontSize,
+		HintFontSize:  fontSize * 2 / 3,
+		LineSpacing:   1.3,
+		Font:          "./fonts/source-sans-pro.ttf",
+		VerticalAlign: d.VerticalAlign,
 	}
 }
 

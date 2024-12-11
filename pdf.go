@@ -8,13 +8,14 @@ import (
 )
 
 type PageConfig struct {
-	PageWidth    float64
-	PageHeight   float64
-	Margin       float64
-	FontSize     int
-	HintFontSize int
-	LineSpacing  float64
-	Font         string
+	PageWidth     float64
+	PageHeight    float64
+	Margin        float64
+	FontSize      int
+	HintFontSize  int
+	LineSpacing   float64
+	Font          string
+	VerticalAlign string
 }
 
 type PdfSlides struct {
@@ -77,7 +78,7 @@ func (pdf *PdfSlides) writeVerse(text string) (int, error) {
 			pdf.addPage()
 		}
 
-		err := pdf.writeCenteredParagraph(linesSlice)
+		err := pdf.writeAlignedParagraph(linesSlice)
 		if err != nil {
 			return 0, err
 		}
@@ -86,19 +87,32 @@ func (pdf *PdfSlides) writeVerse(text string) (int, error) {
 	return len(subPages), nil
 }
 
-func (pdf *PdfSlides) writeCenteredParagraph(lines []string) error {
+func (pdf *PdfSlides) writeAlignedParagraph(lines []string) error {
 	paragraphHeight := float64(len(lines)) * pdf.lineHeight
-	y0 := (pdf.pageConfig.PageHeight - paragraphHeight) / 2
+	var y0 float64
 
+	switch pdf.pageConfig.VerticalAlign {
+	case "top":
+		y0 = pdf.pageConfig.Margin
+	case "bottom":
+		y0 = pdf.pageConfig.PageHeight - paragraphHeight - pdf.pageConfig.Margin
+	default:
+		y0 = (pdf.pageConfig.PageHeight - paragraphHeight) / 2
+	}
+
+	return pdf.writeParagraph(lines, y0)
+}
+
+func (pdf *PdfSlides) writeParagraph(lines []string, y0 float64) error {
+	offset := float64(pdf.pageConfig.FontSize) * (pdf.pageConfig.LineSpacing - 1) / 2
 	for index, line := range lines {
-		y := y0 + float64(index)*pdf.lineHeight
+		y := y0 + float64(index)*pdf.lineHeight + offset
 		pdf.goPdf.SetY(y)
 		err := pdf.writeCenteredLine(line)
 		if err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
