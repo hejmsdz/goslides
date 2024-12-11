@@ -26,7 +26,7 @@ func BreakLongLines(lines []string, measure Measurer, contentWidth float64) []st
 const LineEndMark = "\u200d"
 
 var possiblePageBreakMarkers = map[string]int{
-	"": 1,
+	"":  1,
 	",": 1,
 	":": 1,
 	";": 1,
@@ -50,7 +50,7 @@ func removeLineEndMarks(lines []string) []string {
 func countFullLines(lines []string) int {
 	numFullLines := 0
 	for _, line := range lines {
-		if strings.HasSuffix(line, LineEndMark){
+		if strings.HasSuffix(line, LineEndMark) {
 			numFullLines++
 		}
 	}
@@ -71,11 +71,11 @@ func SplitLongSlide(lines []string, maxLines int) [][]string {
 		currentLinePriority := 0
 		for i := lineIndexToBreakOn; i > 0; i-- {
 			for marker, priority := range possiblePageBreakMarkers {
-				if priority > currentLinePriority && strings.HasSuffix(lines[i], marker + LineEndMark) {
+				if priority > currentLinePriority && strings.HasSuffix(lines[i], marker+LineEndMark) {
 					// don't leave a single line (original, before line breaking) on the next slide,
 					// unless a single line would remain on the slide before
 					remainingLines := lines[i+1:]
-					if (len(remainingLines) == 0 || countFullLines(remainingLines) > 1 || countFullLines(lines[0:i]) == 1) {
+					if len(remainingLines) == 0 || countFullLines(remainingLines) > 1 || countFullLines(lines[0:i]) == 1 {
 						lineIndexToBreakOn = i
 						currentLinePriority = priority
 					}
@@ -112,7 +112,7 @@ func preventAwkwardLineBreaks(text string) string {
 }
 
 func BreakOnSpaces(line string, measure Measurer, contentWidth float64) []string {
-	return breakLine(line + LineEndMark, measure, contentWidth, " ")
+	return breakLine(line+LineEndMark, measure, contentWidth, " ")
 }
 
 func breakLine(line string, measure Measurer, contentWidth float64, separator string) []string {
@@ -166,21 +166,21 @@ func breakLineInTwo(words []string, measure Measurer, contentWidth float64, sepa
 	for ; i < len(words); i++ {
 		firstLine += separator + words[i]
 		firstLine = strings.Trim(firstLine, " ")
-		firstLineWidth,_ := measure(firstLine)
+		firstLineWidth, _ := measure(firstLine)
 
 		secondLine = secondLine[len(words[i]):]
 		secondLine = strings.Trim(secondLine, " ")
-		secondLineWidth,_ := measure(secondLine)
+		secondLineWidth, _ := measure(secondLine)
 
 		diff := math.Abs(firstLineWidth - secondLineWidth)
 		if diff < minDiff {
 			minDiff = diff
 		} else {
-			firstLine = firstLine[0:len(firstLine)-len(words[i])]
+			firstLine = firstLine[0 : len(firstLine)-len(words[i])]
 			secondLine = words[i] + secondLine
 			break
 		}
 	}
 
-	return []string{ firstLine, secondLine }
+	return []string{firstLine, secondLine}
 }
