@@ -11,10 +11,14 @@ func BreakLongLines(lines []string, measure Measurer, contentWidth float64) []st
 	result := make([]string, 0)
 
 	for _, line := range lines {
-		line = strings.Trim(line, " ")
-		line = preventAwkwardLineBreaks(line)
+		trimmedLine := strings.Trim(line, " ")
+		escapedLine := preventAwkwardLineBreaks(trimmedLine)
 
-		for _, wordSplit := range BreakOnSpaces(line, measure, contentWidth) {
+		if !strings.Contains(escapedLine, " ") {
+			escapedLine = trimmedLine
+		}
+
+		for _, wordSplit := range BreakOnSpaces(escapedLine, measure, contentWidth) {
 			wordSplit = strings.ReplaceAll(wordSplit, "~", " ")
 			result = append(result, wordSplit)
 		}
@@ -100,7 +104,7 @@ func preventAwkwardLineBreaks(text string) string {
 	for i, word := range words {
 		result += word
 		if i < lastIndex {
-			if len(word) <= 3 || i == penultimateIndex {
+			if len(word) <= 3 || (i == penultimateIndex && len(words[lastIndex]) < 10) {
 				result += "~"
 			} else {
 				result += " "

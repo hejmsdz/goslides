@@ -4,6 +4,19 @@ import (
 	"testing"
 )
 
+func TestBreakLongLines(t *testing.T) {
+	longLine := "No way to cut it in two"
+	measureText := func(s string) (float64, error) {
+		return float64(len(s)), nil
+	}
+	contentWidth := 16.0
+	result := BreakLongLines([]string{longLine}, measureText, contentWidth)
+
+	if len(result) != 2 {
+		t.Errorf("Expected the line to be broken into 2 lines")
+	}
+}
+
 func TestBreakOnSpaces(t *testing.T) {
 	longLine := "Chleb niebiański dał nam Pan"
 	measureText := func(s string) (float64, error) {
