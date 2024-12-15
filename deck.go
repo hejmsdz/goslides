@@ -57,11 +57,12 @@ func (d Deck) GetPageConfig() PageConfig {
 		fontSize = d.FontSize
 	}
 
-	pageWidth := 768.0
+	pageHeight := 432.0
+	pageWidth := pageHeight * ratio
 
 	return PageConfig{
 		PageWidth:     pageWidth,
-		PageHeight:    pageWidth / ratio,
+		PageHeight:    pageHeight,
 		Margin:        8,
 		FontSize:      fontSize,
 		HintFontSize:  fontSize * 2 / 3,
