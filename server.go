@@ -46,7 +46,7 @@ func corsMiddleware(c *gin.Context) {
 }
 
 type Server struct {
-	songsDB   *SongsDB
+	songsDB   SongsDB
 	liturgyDB LiturgyDB
 	manual    Manual
 	addr      string
@@ -104,7 +104,7 @@ func (srv Server) postDeck(c *gin.Context) {
 		return
 	}
 
-	textDeck, ok := deck.ToTextSlides(*srv.songsDB, srv.liturgyDB)
+	textDeck, ok := deck.ToTextSlides(srv.songsDB, srv.liturgyDB)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get lyrics"})
 		return
@@ -153,7 +153,7 @@ func (srv Server) postDeck(c *gin.Context) {
 }
 
 func (srv Server) postReload(c *gin.Context) {
-	err := srv.songsDB.Initialize(NOTION_TOKEN, NOTION_DB)
+	err := srv.songsDB.Reload()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

@@ -12,8 +12,8 @@ var NOTION_MANUAL = os.Getenv("NOTION_MANUAL")
 func main() {
 	manual, _ := GetManual(NOTION_TOKEN, NOTION_MANUAL)
 
-	songsDB := SongsDB{}
-	songsDB.Initialize(NOTION_TOKEN, NOTION_DB)
+	songsDB := SQLSongsDB{}
+	songsDB.Initialize()
 
 	liturgyDB := LiturgyDB{}
 	liturgyDB.Initialize()
@@ -24,9 +24,21 @@ func main() {
 	}
 
 	Server{
-		songsDB:   &songsDB,
+		songsDB:   songsDB,
 		liturgyDB: liturgyDB,
 		manual:    manual,
 		addr:      fmt.Sprintf(":%s", port),
 	}.Run()
 }
+
+/*
+func main() {
+	n := NotionSongsDB{authToken: NOTION_TOKEN, databaseId: NOTION_DB}
+	n.Initialize()
+
+	songsDB := SqlSongsDB{}
+	songsDB.Initialize()
+
+	songsDB.Import(n)
+}
+*/

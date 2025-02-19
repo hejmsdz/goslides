@@ -7,47 +7,23 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/jomei/notionapi"
-	"github.com/rainycape/unidecode"
 )
 
 const propertyNameTitle = "Tytuł"
 const propertyNameNumber = "Numer"
 const propertyNameTags = "Kategorie"
-const ordinaryTag = "części stałe"
 
-var nonAlpha = regexp.MustCompile(`[^a-zA-Z0-9\. ]+`)
-var verseName = regexp.MustCompile(`^\[(\w+)\]\s+`)
-var verseRef = regexp.MustCompile(`^%(\w+)$`)
 var numberQueryRegexp = regexp.MustCompile(`^\d`)
 
-const subtitleSeparator = " / "
-const commentSymbol = "//"
-const lineBreakSymbol = " * "
-
-const hintStartTag = "<hint>"
-const hintEndTag = "</hint>"
-
-type Song struct {
-	Id         string `json:"id"`
-	Title      string `json:"title"`
-	Subtitle   string `json:"subtitle,omitempty"`
-	Number     string `json:"number"`
-	Tags       string `json:"-"`
-	Slug       string `json:"slug"`
-	IsOrdinary bool   `json:"isOrdinary,omitempty"`
-
-	numberChapter int
-	numberItem    int
-	updatedAt     time.Time
-}
-
-type SongsDB struct {
+type NotionSongsDB struct {
 	client       *notionapi.Client
 	Songs        map[string]Song
 	LyricsBlocks map[string][]string
+
+	authToken  string
+	databaseId string
 }
 
 func extractText(property []notionapi.RichText) (text string) {
@@ -61,15 +37,6 @@ func extractText(property []notionapi.RichText) (text string) {
 	}
 
 	return
-}
-
-func slugify(text string) string {
-	text = strings.ToLower(text)
-	text = unidecode.Unidecode(text)
-	text = nonAlpha.ReplaceAllString(text, "")
-	text = strings.Trim(text, " ")
-
-	return text
 }
 
 func splitTitle(fullTitle string) (string, string) {
@@ -104,8 +71,8 @@ func parseNumber(number string) (int, int) {
 	return numberChapter, numberItem
 }
 
-func (sdb *SongsDB) Initialize(authToken string, databaseId string) error {
-	sdb.client = notionapi.NewClient(notionapi.Token(authToken))
+func (sdb *NotionSongsDB) Initialize() error {
+	sdb.client = notionapi.NewClient(notionapi.Token(sdb.authToken))
 	sdb.Songs = make(map[string]Song, 0)
 	sdb.LyricsBlocks = make(map[string][]string, 0)
 
@@ -118,7 +85,7 @@ func (sdb *SongsDB) Initialize(authToken string, databaseId string) error {
 	for {
 		result, err := sdb.client.Database.Query(
 			context.Background(),
-			notionapi.DatabaseID(databaseId),
+			notionapi.DatabaseID(sdb.databaseId),
 			&query,
 		)
 		if err != nil {
@@ -137,7 +104,11 @@ func (sdb *SongsDB) Initialize(authToken string, databaseId string) error {
 	}
 }
 
-func (sdb SongsDB) SaveSong(song notionapi.Page) {
+func (sdb NotionSongsDB) Reload() error {
+	return sdb.Initialize()
+}
+
+func (sdb NotionSongsDB) SaveSong(song notionapi.Page) {
 	pageID := song.ID.String()
 	fullTitle := extractText(song.Properties[propertyNameTitle].(*notionapi.TitleProperty).Title)
 	number := extractText(song.Properties[propertyNameNumber].(*notionapi.RichTextProperty).RichText)
@@ -152,7 +123,7 @@ func (sdb SongsDB) SaveSong(song notionapi.Page) {
 		Subtitle:   subtitle,
 		Number:     number,
 		Tags:       tags,
-		Slug:       fmt.Sprintf("%s|%s|%s", slugify(fullTitle), number, slugify(tags)),
+		Slug:       fmt.Sprintf("%s|%s|%s", Slugify(fullTitle), number, Slugify(tags)),
 		IsOrdinary: strings.Contains(tags, ordinaryTag),
 
 		numberChapter: numberChapter,
@@ -161,14 +132,14 @@ func (sdb SongsDB) SaveSong(song notionapi.Page) {
 	}
 }
 
-func (sdb SongsDB) FilterSongs(query string) (results []Song) {
+func (sdb NotionSongsDB) FilterSongs(query string) (results []Song) {
 	results = make([]Song, 0)
 
 	if len(query) < 3 {
 		return
 	}
 
-	querySlug := slugify(query)
+	querySlug := Slugify(query)
 
 	for _, song := range sdb.Songs {
 		if strings.Contains(song.Slug, querySlug) {
@@ -193,7 +164,7 @@ func (sdb SongsDB) FilterSongs(query string) (results []Song) {
 	return
 }
 
-func (sdb SongsDB) LoadMissingVerses(songIDs []string) error {
+func (sdb NotionSongsDB) LoadMissingVerses(songIDs []string) error {
 	pagination := notionapi.Pagination{
 		StartCursor: "",
 		PageSize:    100,
@@ -254,76 +225,14 @@ func (sdb SongsDB) LoadMissingVerses(songIDs []string) error {
 	return nil
 }
 
-type GetLyricsOptions struct {
-	Hints bool
-	Raw   bool
-	Order []int
-}
+func (sdb NotionSongsDB) GetLyrics(songID string, options GetLyricsOptions) ([]string, bool) {
+	lyrics, ok := sdb.LyricsBlocks[songID]
 
-func (sdb SongsDB) GetLyrics(songID string, options GetLyricsOptions) ([]string, bool) {
-	hasAllVerses := true
-
-	verses, ok := sdb.LyricsBlocks[songID]
 	if !ok {
 		return nil, false
 	}
 
-	lyrics := make([]string, 0)
-	namedVerses := make(map[string]string)
 	song := sdb.Songs[songID]
-	if options.Hints {
-		hint := song.Number
-		if utfTitle := []rune(song.Title); hint == "" && len(utfTitle) >= 2 {
-			hint = string(utfTitle[0:2])
-		}
-		lyrics = append(lyrics, hintStartTag+hint+hintEndTag)
-	}
 
-	var order []int
-	if options.Order == nil {
-		order = make([]int, len(verses))
-		for i := range verses {
-			order[i] = i
-		}
-	} else {
-		order = options.Order
-	}
-
-	for _, index := range order {
-		if index >= len(verses) {
-			continue
-		}
-		verse := verses[index]
-
-		if !options.Raw {
-			if strings.HasPrefix(verse, commentSymbol) {
-				if options.Order == nil {
-					// if order is not given, skip commented out verses
-					continue
-				}
-
-				// but if order is given, the verse is included deliberately and comment symbol should be ignored
-				verse = strings.TrimPrefix(verse, commentSymbol)
-				verse = strings.TrimLeft(verse, " ")
-			}
-
-			if match := verseRef.FindStringSubmatch(verse); match != nil {
-				name := match[1]
-				if namedVerse, ok := namedVerses[name]; ok {
-					verse = namedVerse
-				}
-			} else {
-				verse = strings.ReplaceAll(verse, lineBreakSymbol, "\n")
-				if match := verseName.FindStringSubmatch(verse); match != nil {
-					name := match[1]
-					verse = verse[len(match[0]):]
-					namedVerses[name] = verse
-				}
-			}
-		}
-
-		lyrics = append(lyrics, verse)
-	}
-
-	return lyrics, hasAllVerses
+	return FormatLyrics(lyrics, song.Title, song.Number, options), true
 }
