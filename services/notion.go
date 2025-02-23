@@ -1,30 +1,58 @@
-package main
+package services
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jomei/notionapi"
+	"github.com/rainycape/unidecode"
 )
 
 const propertyNameTitle = "Tytuł"
 const propertyNameNumber = "Numer"
 const propertyNameTags = "Kategorie"
+const ordinaryTag = "części stałe"
+const subtitleSeparator = " / "
 
+var nonAlpha = regexp.MustCompile(`[^a-zA-Z0-9\. ]+`)
 var numberQueryRegexp = regexp.MustCompile(`^\d`)
+
+var NOTION_TOKEN = os.Getenv("NOTION_TOKEN")
+var NOTION_DB = os.Getenv("NOTION_DB")
+
+func slugify(text string) string {
+	text = strings.ToLower(text)
+	text = unidecode.Unidecode(text)
+	text = nonAlpha.ReplaceAllString(text, "")
+	text = strings.Trim(text, " ")
+
+	return text
+}
+
+type Song struct {
+	Id         string `json:"id"`
+	Title      string `json:"title"`
+	Subtitle   string `json:"subtitle,omitempty"`
+	Number     string `json:"number"`
+	Tags       string `json:"-"`
+	Slug       string `json:"slug"`
+	IsOrdinary bool   `json:"isOrdinary,omitempty"`
+
+	numberChapter int
+	numberItem    int
+	updatedAt     time.Time
+}
 
 type NotionSongsDB struct {
 	client       *notionapi.Client
 	Songs        map[string]Song
 	LyricsBlocks map[string][]string
-
-	authToken  string
-	databaseId string
 }
 
 func extractText(property []notionapi.RichText) (text string) {
@@ -73,7 +101,7 @@ func parseNumber(number string) (int, int) {
 }
 
 func (sdb *NotionSongsDB) Initialize() error {
-	sdb.client = notionapi.NewClient(notionapi.Token(sdb.authToken))
+	sdb.client = notionapi.NewClient(notionapi.Token(NOTION_TOKEN))
 	sdb.Songs = make(map[string]Song, 0)
 	sdb.LyricsBlocks = make(map[string][]string, 0)
 
@@ -86,7 +114,7 @@ func (sdb *NotionSongsDB) Initialize() error {
 	for {
 		result, err := sdb.client.Database.Query(
 			context.Background(),
-			notionapi.DatabaseID(sdb.databaseId),
+			notionapi.DatabaseID(NOTION_DB),
 			&query,
 		)
 		if err != nil {
@@ -124,7 +152,7 @@ func (sdb NotionSongsDB) SaveSong(song notionapi.Page) {
 		Subtitle:   subtitle,
 		Number:     number,
 		Tags:       tags,
-		Slug:       fmt.Sprintf("%s|%s|%s", Slugify(fullTitle), number, Slugify(tags)),
+		Slug:       fmt.Sprintf("%s|%s|%s", slugify(fullTitle), number, slugify(tags)),
 		IsOrdinary: strings.Contains(tags, ordinaryTag),
 
 		numberChapter: numberChapter,
@@ -140,7 +168,7 @@ func (sdb NotionSongsDB) FilterSongs(query string) (results []Song) {
 		return
 	}
 
-	querySlug := Slugify(query)
+	querySlug := slugify(query)
 
 	for _, song := range sdb.Songs {
 		if strings.Contains(song.Slug, querySlug) {
@@ -224,37 +252,4 @@ func (sdb NotionSongsDB) LoadMissingVerses(songIDs []string) error {
 	}
 
 	return nil
-}
-
-func (sdb NotionSongsDB) GetLyrics(songID string, options GetLyricsOptions) ([]string, bool) {
-	lyrics, ok := sdb.LyricsBlocks[songID]
-
-	if !ok {
-		return nil, false
-	}
-
-	song := sdb.Songs[songID]
-
-	return FormatLyrics(lyrics, song.Title, song.Number, options), true
-}
-
-func (sdb NotionSongsDB) GetSong(songID string) (SongWithLyrics, bool) {
-	formattedLyrics, ok := sdb.GetLyrics(songID, GetLyricsOptions{Raw: true})
-
-	return SongWithLyrics{
-		Song:   sdb.Songs[songID],
-		Lyrics: formattedLyrics,
-	}, ok
-}
-
-func (sdb NotionSongsDB) CreateSong(input SongInput) (string, error) {
-	return "", errors.New("not supported")
-}
-
-func (sdb NotionSongsDB) UpdateSong(id string, input SongInput) error {
-	return errors.New("not supported")
-}
-
-func (sdb NotionSongsDB) DeleteSong(id string) error {
-	return errors.New("not supported")
 }

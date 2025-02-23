@@ -1,6 +1,7 @@
-package main
+package core
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/signintech/gopdf"
@@ -16,6 +17,13 @@ type PageConfig struct {
 	LineSpacing   float64
 	Font          string
 	VerticalAlign string
+}
+
+type ContentSlide struct {
+	Type       string `json:"t"`
+	ItemIndex  int    `json:"i"`
+	VerseIndex int    `json:"v"`
+	ChunkIndex int    `json:"c"`
 }
 
 type PdfSlides struct {
@@ -145,6 +153,7 @@ func (pdf *PdfSlides) drawQrCode(content string) {
 }
 
 func BuildPDF(textDeck [][]string, pageConfig PageConfig) (*gopdf.GoPdf, []ContentSlide, error) {
+	fmt.Printf("%+v\n", pageConfig)
 	pdf := PdfSlides{}
 	err := pdf.Initialize(pageConfig)
 	if err != nil {
@@ -157,10 +166,12 @@ func BuildPDF(textDeck [][]string, pageConfig PageConfig) (*gopdf.GoPdf, []Conte
 	for itemIndex, song := range textDeck {
 		hint := ""
 		for verseIndex, verse := range song {
-			if strings.HasPrefix(verse, hintStartTag) && strings.HasSuffix(verse, hintEndTag) {
-				hint = verse[len(hintStartTag) : len(verse)-len(hintEndTag)]
-				continue
-			}
+			/*
+				if strings.HasPrefix(verse, hintStartTag) && strings.HasSuffix(verse, hintEndTag) {
+					hint = verse[len(hintStartTag) : len(verse)-len(hintEndTag)]
+					continue
+				}
+			*/
 
 			pdf.addPage()
 			if hint != "" {

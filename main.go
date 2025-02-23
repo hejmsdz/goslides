@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+
+	"github.com/hejmsdz/goslides/di"
+	"github.com/hejmsdz/goslides/models"
 )
 
 var NOTION_TOKEN = os.Getenv("NOTION_TOKEN")
@@ -10,35 +13,28 @@ var NOTION_DB = os.Getenv("NOTION_DB")
 var NOTION_MANUAL = os.Getenv("NOTION_MANUAL")
 
 func main() {
-	manual, _ := GetManual(NOTION_TOKEN, NOTION_MANUAL)
-
-	songsDB := SQLSongsDB{}
-	songsDB.Initialize("prod.db")
-
-	liturgyDB := LiturgyDB{}
-	liturgyDB.Initialize()
+	db := InitializeDB("prod.db", []interface{}{models.Song{}})
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8000"
 	}
 
+	container := di.NewContainer(db)
+
 	Server{
-		songsDB:   songsDB,
-		liturgyDB: liturgyDB,
-		manual:    manual,
+		container: container,
 		addr:      fmt.Sprintf(":%s", port),
 	}.Run()
 }
 
 /*
 func main() {
-	n := NotionSongsDB{authToken: NOTION_TOKEN, databaseId: NOTION_DB}
+	n := services.NotionSongsDB{}
 	n.Initialize()
 
-	songsDB := SqlSongsDB{}
-	songsDB.Initialize()
-
-	songsDB.Import(n)
+	db := InitializeDB("prod.db", []interface{}{models.Song{}})
+	container := di.NewContainer(db)
+	container.Songs.Import(n)
 }
 */

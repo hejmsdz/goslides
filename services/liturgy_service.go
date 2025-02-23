@@ -1,4 +1,4 @@
-package main
+package services
 
 import (
 	"fmt"
@@ -6,21 +6,13 @@ import (
 	"strings"
 
 	"github.com/andybalholm/cascadia"
+	"github.com/hejmsdz/goslides/dtos"
 	"golang.org/x/net/html"
 )
 
-type Liturgy struct {
-	Psalm            string `json:"psalm"`
-	Acclamation      string `json:"acclamation"`
-	AcclamationVerse string `json:"acclamationVerse"`
+type LiturgyService struct {
+	days map[string]dtos.LiturgyItems
 }
-
-type LiturgyDB struct {
-	Days map[string]Liturgy
-}
-
-const PSALM = "PSALM"
-const ACCLAMATION = "ACCLAMATION"
 
 func getAttributeValue(node *html.Node, key string) string {
 	for _, attribute := range node.Attr {
@@ -92,8 +84,8 @@ func getAcclamation(doc *html.Node) (string, string, bool) {
 	return strings.TrimSpace(alleluia), strings.TrimSpace(verse), true
 }
 
-func GetLiturgy(date string) (Liturgy, bool) {
-	liturgy := Liturgy{}
+func (l LiturgyService) fetchLiturgy(date string) (dtos.LiturgyItems, bool) {
+	liturgy := dtos.LiturgyItems{}
 
 	url := fmt.Sprintf("https://niezbednik.niedziela.pl/site/liturgia?data=%s", date)
 	res, err := http.Get(url)
@@ -117,19 +109,21 @@ func GetLiturgy(date string) (Liturgy, bool) {
 	return liturgy, psalmOk && acclamationOk
 }
 
-func (ldb *LiturgyDB) Initialize() {
-	ldb.Days = make(map[string]Liturgy)
+func NewLiturgyService() *LiturgyService {
+	return &LiturgyService{
+		days: make(map[string]dtos.LiturgyItems),
+	}
 }
 
-func (ldb LiturgyDB) GetDay(date string) (Liturgy, bool) {
-	liturgy, ok := ldb.Days[date]
+func (l *LiturgyService) GetDay(date string) (dtos.LiturgyItems, bool) {
+	liturgy, ok := l.days[date]
 	if ok {
 		return liturgy, true
 	}
 
-	liturgy, ok = GetLiturgy(date)
+	liturgy, ok = l.fetchLiturgy(date)
 	if ok {
-		ldb.Days[date] = liturgy
+		l.days[date] = liturgy
 	}
 
 	return liturgy, ok

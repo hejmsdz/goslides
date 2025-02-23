@@ -1,51 +1,15 @@
-package main
+package services
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
+
+	"github.com/hejmsdz/goslides/core"
+	"github.com/hejmsdz/goslides/dtos"
+	"github.com/hejmsdz/goslides/models"
 )
 
-type Deck struct {
-	Date          string     `json:"date"`
-	Items         []DeckItem `json:"items"`
-	Hints         bool       `json:"hints"`
-	Ratio         string     `json:"ratio"`
-	FontSize      int        `json:"fontSize"`
-	VerticalAlign string     `json:"verticalAlign"`
-	Format        string     `json:"format"`
-	Contents      bool       `json:"contents"`
-}
-
-type DeckItem struct {
-	ID       string   `json:"id"`
-	Type     string   `json:"type"`
-	Contents []string `json:"contents"`
-	Order    []int    `json:"order"`
-}
-
-type ContentSlide struct {
-	Type       string `json:"t"`
-	ItemIndex  int    `json:"i"`
-	VerseIndex int    `json:"v"`
-	ChunkIndex int    `json:"c"`
-}
-
-var dateRegexp = regexp.MustCompile(`^20\d\d-[0-1]\d-[0-3]\d$`)
-
-func (d Deck) IsValid() bool {
-	if !dateRegexp.MatchString(d.Date) {
-		return false
-	}
-
-	if len(d.Items) == 0 {
-		return false
-	}
-
-	return true
-}
-
-func (d Deck) GetPageConfig() PageConfig {
+func GetPageConfig(d dtos.DeckRequest) core.PageConfig {
 	ratio := 4.0 / 3.0
 	fontSize := 36
 
@@ -60,7 +24,7 @@ func (d Deck) GetPageConfig() PageConfig {
 	pageHeight := 432.0
 	pageWidth := pageHeight * ratio
 
-	return PageConfig{
+	return core.PageConfig{
 		PageWidth:     pageWidth,
 		PageHeight:    pageHeight,
 		Margin:        8,
@@ -72,32 +36,31 @@ func (d Deck) GetPageConfig() PageConfig {
 	}
 }
 
-func (d Deck) ToTextSlides(songsDB SongsDB, liturgyDB LiturgyDB) ([][]string, bool) {
-	songIDs := make([]string, 0)
+const PSALM = "PSALM"
+const ACCLAMATION = "ACCLAMATION"
+
+func BuildTextSlides(d dtos.DeckRequest, songsService SongsService, liturgyService LiturgyService) ([][]string, bool) {
 	hasLiturgy := false
 	for _, item := range d.Items {
-		if item.ID != "" {
-			songIDs = append(songIDs, item.ID)
-		}
 		if item.Type == PSALM || item.Type == ACCLAMATION {
 			hasLiturgy = true
 		}
 	}
-	songsDB.LoadMissingVerses(songIDs)
 
-	var liturgy Liturgy
+	var liturgy dtos.LiturgyItems
 	liturgyOk := true
 	if hasLiturgy {
-		liturgy, liturgyOk = liturgyDB.GetDay(d.Date)
+		liturgy, liturgyOk = liturgyService.GetDay(d.Date)
 	}
 
 	slides := make([][]string, 0)
 	for _, item := range d.Items {
 		if item.ID != "" {
-			lyrics, ok := songsDB.GetLyrics(item.ID, GetLyricsOptions{Hints: d.Hints, Order: item.Order})
-			if !ok {
+			song, err := songsService.GetSong(item.ID)
+			if err != nil {
 				return slides, false
 			}
+			lyrics := song.FormatLyrics(models.FormatLyricsOptions{Order: item.Order})
 			slides = append(slides, lyrics)
 		} else if item.Type == PSALM && liturgyOk {
 			alleluiaticSuffix := ", albo: Alleluja"
@@ -114,7 +77,7 @@ func (d Deck) ToTextSlides(songsDB SongsDB, liturgyDB LiturgyDB) ([][]string, bo
 				liturgy.AcclamationVerse,
 				liturgy.Acclamation)
 			slides = append(slides, []string{fullAcclamation})
-		} else if item.Contents != nil && len(item.Contents) > 0 {
+		} else if len(item.Contents) > 0 {
 			slides = append(slides, item.Contents)
 		}
 	}
