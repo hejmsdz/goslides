@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -61,6 +62,71 @@ func (srv Server) getSongs(c *gin.Context) {
 	query := c.Query("query")
 	songs := srv.songsDB.FilterSongs(query)
 	c.JSON(http.StatusOK, songs)
+}
+
+func (srv Server) postSong(c *gin.Context) {
+	var input SongInput
+	if err := c.ShouldBind(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !input.IsValid() {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "Invalid data"})
+		return
+	}
+
+	id, err := srv.songsDB.CreateSong(input)
+	if err == nil {
+		c.JSON(http.StatusCreated, gin.H{"id": id})
+	} else {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+}
+
+func (srv Server) getSong(c *gin.Context) {
+	id := c.Param("id")
+	srv.songsDB.LoadMissingVerses([]string{id})
+	song, ok := srv.songsDB.GetSong(id)
+
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Song ID not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, song)
+}
+
+func (srv Server) patchSong(c *gin.Context) {
+	id := c.Param("id")
+	var input SongInput
+	if err := c.ShouldBind(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !input.IsValid() {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "Invalid data"})
+		return
+	}
+
+	err := srv.songsDB.UpdateSong(id, input)
+	if err == nil {
+		c.JSON(http.StatusOK, gin.H{})
+	} else {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+}
+
+func (srv Server) deleteSong(c *gin.Context) {
+	id := c.Param("id")
+
+	err := srv.songsDB.DeleteSong(id)
+	if err == nil {
+		c.JSON(http.StatusOK, gin.H{})
+	} else {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
 }
 
 func (srv Server) getLyrics(c *gin.Context) {
@@ -308,10 +374,18 @@ func (srv Server) postLivePage(c *gin.Context) {
 func (srv Server) Run() {
 	r := gin.Default()
 	r.Use(corsMiddleware)
+	auth := gin.BasicAuth(gin.Accounts{
+		"admin": os.Getenv("ADMIN_PASSWORD"),
+	})
+
 	r.Static("/public", "./public")
 	v2 := r.Group("/v2")
 	v2.GET("/bootstrap", srv.getBootstrap)
 	v2.GET("/songs", srv.getSongs)
+	v2.POST("/songs", auth, srv.postSong)
+	v2.GET("/songs/:id", srv.getSong)
+	v2.PATCH("/songs/:id", auth, srv.patchSong)
+	v2.DELETE("/songs/:id", auth, srv.deleteSong)
 	v2.GET("/lyrics/:id", srv.getLyrics)
 	v2.GET("/liturgy/:date", srv.getLiturgy)
 	v2.GET("/manual", srv.getManual)

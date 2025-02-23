@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -235,4 +236,25 @@ func (sdb NotionSongsDB) GetLyrics(songID string, options GetLyricsOptions) ([]s
 	song := sdb.Songs[songID]
 
 	return FormatLyrics(lyrics, song.Title, song.Number, options), true
+}
+
+func (sdb NotionSongsDB) GetSong(songID string) (SongWithLyrics, bool) {
+	formattedLyrics, ok := sdb.GetLyrics(songID, GetLyricsOptions{Raw: true})
+
+	return SongWithLyrics{
+		Song:   sdb.Songs[songID],
+		Lyrics: formattedLyrics,
+	}, ok
+}
+
+func (sdb NotionSongsDB) CreateSong(input SongInput) (string, error) {
+	return "", errors.New("not supported")
+}
+
+func (sdb NotionSongsDB) UpdateSong(id string, input SongInput) error {
+	return errors.New("not supported")
+}
+
+func (sdb NotionSongsDB) DeleteSong(id string) error {
+	return errors.New("not supported")
 }

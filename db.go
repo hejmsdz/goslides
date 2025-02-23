@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -11,9 +12,13 @@ import (
 	"gorm.io/gorm"
 )
 
+type SQLSongsDB struct {
+	db *gorm.DB
+}
+
 type DbSong struct {
 	gorm.Model
-	UUID     uuid.UUID
+	UUID     uuid.UUID `gorm:"uniqueIndex"`
 	Title    string
 	Subtitle sql.NullString
 	Number   string
@@ -22,12 +27,18 @@ type DbSong struct {
 	Lyrics   string
 }
 
-type SQLSongsDB struct {
-	db *gorm.DB
+func (s *DbSong) BeforeSave(tx *gorm.DB) (err error) {
+	if s.UUID == uuid.Nil {
+		s.UUID = uuid.New()
+	}
+
+	s.Slug = fmt.Sprintf("%s|%s|%s|%s", Slugify(s.Title), Slugify(s.Subtitle.String), s.Number, Slugify(s.Tags))
+
+	return nil
 }
 
-func (sdb *SQLSongsDB) Initialize() {
-	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+func (sdb *SQLSongsDB) Initialize(dbPath string) {
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
 		panic("failed to connect")
 	}
@@ -45,6 +56,37 @@ func (sdb SQLSongsDB) LoadMissingVerses(songIDs []string) error {
 	return nil
 }
 
+func MapDbSong(s DbSong) Song {
+	return Song{
+		Id:         s.UUID.String(),
+		Title:      s.Title,
+		Subtitle:   s.Subtitle.String,
+		Number:     s.Number,
+		Slug:       s.Slug,
+		Tags:       s.Tags,
+		IsOrdinary: strings.Contains(s.Tags, ordinaryTag),
+	}
+
+}
+
+func (sdb SQLSongsDB) GetSong(songID string) (SongWithLyrics, bool) {
+	var song DbSong
+	result := sdb.db.Where("uuid", songID).Take(&song)
+
+	if result.Error != nil {
+		return SongWithLyrics{}, false
+	}
+
+	lyrics := strings.Split(song.Lyrics, "\n\n")
+
+	formattedLyrics := FormatLyrics(lyrics, song.Title, song.Number, GetLyricsOptions{Raw: true})
+
+	return SongWithLyrics{
+		Song:   MapDbSong(song),
+		Lyrics: formattedLyrics,
+	}, true
+}
+
 func (sdb SQLSongsDB) GetLyrics(songID string, options GetLyricsOptions) ([]string, bool) {
 	var song DbSong
 	result := sdb.db.Where("uuid", songID).Take(&song)
@@ -59,28 +101,76 @@ func (sdb SQLSongsDB) GetLyrics(songID string, options GetLyricsOptions) ([]stri
 }
 
 func (sdb SQLSongsDB) FilterSongs(query string) []Song {
+	if len(query) < 3 {
+		return []Song{}
+	}
+
 	querySlug := Slugify(query)
 
 	var dbSongs []DbSong
 	sdb.db.Select("uuid", "title", "subtitle", "number", "tags", "slug").
 		Where("slug LIKE ?", "%"+querySlug+"%").
+		Order("title ASC, subtitle ASC").
 		Find(&dbSongs)
 
 	songs := make([]Song, len(dbSongs))
 
 	for i, s := range dbSongs {
-		songs[i].Id = s.UUID.String()
-		songs[i].Title = s.Title
-		if s.Subtitle.Valid {
-			songs[i].Subtitle = s.Subtitle.String
-		}
-		songs[i].Number = s.Number
-		songs[i].Slug = s.Slug
-		songs[i].Tags = s.Tags
-		songs[i].IsOrdinary = strings.Contains(s.Tags, ordinaryTag)
+		songs[i] = MapDbSong(s)
 	}
 
 	return songs
+}
+
+func (sdb SQLSongsDB) CreateSong(input SongInput) (string, error) {
+	dbSong := DbSong{
+		Title:    input.Title,
+		Subtitle: sql.NullString{String: input.Subtitle, Valid: input.Subtitle != ""},
+		Lyrics:   strings.Join(input.Lyrics, "\n\n"),
+	}
+
+	res := sdb.db.Create(&dbSong)
+	if res.Error != nil {
+		return "", errors.New("failed to create")
+	}
+
+	return dbSong.UUID.String(), nil
+}
+
+func (sdb SQLSongsDB) UpdateSong(id string, input SongInput) error {
+	var dbSong DbSong
+
+	res := sdb.db.Where("uuid = ?", id).Take(&dbSong)
+	if res.Error != nil {
+		return errors.New("not found")
+	}
+
+	dbSong.Title = input.Title
+	dbSong.Subtitle = sql.NullString{String: input.Subtitle, Valid: input.Subtitle != ""}
+	dbSong.Lyrics = strings.Join(input.Lyrics, "\n\n")
+
+	res = sdb.db.Save(&dbSong)
+	if res.Error != nil {
+		return errors.New("failed to save")
+	}
+
+	return nil
+}
+
+func (sdb SQLSongsDB) DeleteSong(id string) error {
+	var dbSong DbSong
+
+	res := sdb.db.Where("uuid = ?", id).Take(&dbSong)
+	if res.Error != nil {
+		return errors.New("not found")
+	}
+
+	res = sdb.db.Delete(&dbSong)
+	if res.Error != nil {
+		return errors.New("failed to delete")
+	}
+
+	return nil
 }
 
 func (sdb SQLSongsDB) Import(n NotionSongsDB) {

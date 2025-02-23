@@ -22,10 +22,31 @@ type Song struct {
 	updatedAt     time.Time
 }
 
+type SongWithLyrics struct {
+	Song
+	Lyrics []string `json:"lyrics"`
+}
+
 type GetLyricsOptions struct {
 	Hints bool
 	Raw   bool
 	Order []int
+}
+
+type SongInput struct {
+	Title    string   `json:"title"`
+	Subtitle string   `json:"subtitle"`
+	Lyrics   []string `json:"lyrics"`
+}
+
+func (i SongInput) IsValid() bool {
+	for _, verse := range i.Lyrics {
+		if strings.Contains(verse, "\n\n") {
+			return false
+		}
+	}
+
+	return true
 }
 
 var nonAlpha = regexp.MustCompile(`[^a-zA-Z0-9\. ]+`)
@@ -46,6 +67,10 @@ type SongsDB interface {
 	LoadMissingVerses(songIDs []string) error
 	GetLyrics(songID string, options GetLyricsOptions) ([]string, bool)
 	FilterSongs(query string) []Song
+	GetSong(songID string) (SongWithLyrics, bool)
+	CreateSong(input SongInput) (string, error)
+	UpdateSong(id string, input SongInput) error
+	DeleteSong(id string) error
 }
 
 func Slugify(text string) string {

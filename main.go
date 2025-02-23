@@ -13,7 +13,7 @@ func main() {
 	manual, _ := GetManual(NOTION_TOKEN, NOTION_MANUAL)
 
 	songsDB := SQLSongsDB{}
-	songsDB.Initialize()
+	songsDB.Initialize("prod.db")
 
 	liturgyDB := LiturgyDB{}
 	liturgyDB.Initialize()
