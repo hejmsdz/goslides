@@ -30,6 +30,7 @@ func (srv Server) Run() {
 
 	r.Static("/public", "./public")
 	v2 := r.Group("/v2")
+	routers.RegisterAuthRoutes(v2, srv.container)
 	routers.RegisterSongRoutes(v2, srv.container)
 	routers.RegisterDeckRoutes(v2, srv.container)
 	routers.RegisterLiturgyRoutes(v2, srv.container)

@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/signintech/gopdf"
@@ -153,7 +152,6 @@ func (pdf *PdfSlides) drawQrCode(content string) {
 }
 
 func BuildPDF(textDeck [][]string, pageConfig PageConfig) (*gopdf.GoPdf, []ContentSlide, error) {
-	fmt.Printf("%+v\n", pageConfig)
 	pdf := PdfSlides{}
 	err := pdf.Initialize(pageConfig)
 	if err != nil {

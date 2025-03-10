@@ -13,12 +13,13 @@ import (
 
 func RegisterSongRoutes(r gin.IRouter, dic *di.Container) {
 	h := NewSongsHandler(dic)
+	auth := dic.Auth.AuthMiddleware
 
 	r.GET("/songs", h.GetSongs)
-	r.POST("/songs", h.PostSong)
+	r.POST("/songs", auth, h.PostSong)
 	r.GET("/songs/:id", h.GetSong)
-	r.PATCH("/songs/:id", h.PatchSong)
-	r.DELETE("/songs/:id", h.DeleteSong)
+	r.PATCH("/songs/:id", auth, h.PatchSong)
+	r.DELETE("/songs/:id", auth, h.DeleteSong)
 	r.GET("/lyrics/:id", h.GetLyrics)
 }
 

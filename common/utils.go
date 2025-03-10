@@ -28,7 +28,7 @@ func GetRandomString(length int) string {
 }
 
 func GetURL(c *gin.Context, path string) string {
-	scheme := "http"
+	scheme := "https"
 	return fmt.Sprintf("%s://%s/%s", scheme, c.Request.Host, path)
 }
 
