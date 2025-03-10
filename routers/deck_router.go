@@ -57,14 +57,6 @@ func (h *DeckHandler) PostDeck(c *gin.Context) {
 	var err error
 
 	switch deck.Format {
-	case "png+zip":
-		extension = ".zip"
-		file, contents, err = core.BuildImages(textDeck, deck.GetPageConfig())
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
 	case "txt":
 		extension = ".txt"
 		text := core.Tugalize(textDeck)
