@@ -13,7 +13,7 @@ var NOTION_DB = os.Getenv("NOTION_DB")
 var NOTION_MANUAL = os.Getenv("NOTION_MANUAL")
 
 func main() {
-	db := InitializeDB("data/prod.db", []interface{}{models.Song{}, models.User{}})
+	db := InitializeDB(os.Getenv("DATABASE"), []interface{}{models.Song{}, models.User{}})
 
 	port := os.Getenv("PORT")
 	if port == "" {

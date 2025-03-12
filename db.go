@@ -1,12 +1,12 @@
 package main
 
 import (
-	"gorm.io/driver/sqlite"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-func InitializeDB(dbPath string, models []interface{}) *gorm.DB {
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+func InitializeDB(dsn string, models []interface{}) *gorm.DB {
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		panic("database connection failed")
 	}
