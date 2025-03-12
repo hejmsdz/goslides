@@ -22,8 +22,14 @@ func NewSongsService(db *gorm.DB) *SongsService {
 	return &SongsService{db}
 }
 
-func (s SongsService) GetSong(uuid string) (models.Song, error) {
+func (s SongsService) GetSong(uuidString string) (models.Song, error) {
 	var song models.Song
+
+	uuid, err := uuid.Parse(uuidString)
+	if err != nil {
+		return song, errors.New("invalid id")
+	}
+
 	result := s.db.Where("uuid", uuid).Take(&song)
 
 	if result.Error != nil {
