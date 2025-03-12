@@ -1,4 +1,4 @@
-FROM golang:1.22 AS builder
+FROM golang:1.24 AS builder
 WORKDIR /app
 
 COPY go.mod go.sum ./
@@ -10,6 +10,7 @@ RUN go build -v -o server
 FROM alpine
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
+VOLUME ["/data"]
 ENV PORT=8000
 ENV GIN_MODE=release
 COPY --from=builder /app/server .
