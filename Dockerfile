@@ -10,7 +10,7 @@ RUN go build -v -o server
 FROM alpine
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
-VOLUME ["/data"]
+VOLUME ["/app/data"]
 ENV PORT=8000
 ENV GIN_MODE=release
 COPY --from=builder /app/server .
