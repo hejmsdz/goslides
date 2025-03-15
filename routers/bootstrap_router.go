@@ -25,7 +25,7 @@ type BootstrapHandler struct {
 }
 
 func NewBootstrapHandler(dic *di.Container) *BootstrapHandler {
-  editURL := "notion://www.notion.so/{id}"
+  editURL := "notion://www.notion.so/{id-}"
 
 	return &BootstrapHandler{
     Bootstrap: dtos.BootstrapResponse{
