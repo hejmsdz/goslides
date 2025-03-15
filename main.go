@@ -33,7 +33,7 @@ func main() {
 	n := services.NotionSongsDB{}
 	n.Initialize()
 
-	db := InitializeDB("prod.db", []interface{}{models.Song{}})
+	db := InitializeDB(os.Getenv("DATABASE"), []interface{}{models.Song{}})
 	container := di.NewContainer(db)
 	container.Songs.Import(n)
 }
