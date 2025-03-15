@@ -21,15 +21,21 @@ func RegisterBootstrapRoutes(r gin.IRouter, dic *di.Container) {
 }
 
 type BootstrapHandler struct {
-	Bootstrap *dtos.BootstrapResponse
+	Bootstrap dtos.BootstrapResponse
 }
 
 func NewBootstrapHandler(dic *di.Container) *BootstrapHandler {
-	return &BootstrapHandler{}
+  editURL := "notion://www.notion.so/{id}"
+
+	return &BootstrapHandler{
+    Bootstrap: dtos.BootstrapResponse{
+      SongEditURL: &editURL,
+    },
+  }
 }
 
 func (h *BootstrapHandler) UpdateRelease(force bool) {
-	if h.Bootstrap != nil && !force {
+	if h.Bootstrap.CurrentVersion != "" && !force {
 		return
 	}
 
@@ -41,7 +47,8 @@ func (h *BootstrapHandler) UpdateRelease(force bool) {
 	}
 
 	currentVersion, _ := strings.CutPrefix(*release.TagName, "v")
-  h.Bootstrap = &dtos.BootstrapResponse{CurrentVersion: currentVersion, AppDownloadURL: *release.HTMLURL}
+  h.Bootstrap.CurrentVersion = currentVersion
+  h.Bootstrap.AppDownloadURL = *release.HTMLURL
 }
 
 func (h *BootstrapHandler) GetBootstrap(c *gin.Context) {
