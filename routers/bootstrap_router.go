@@ -25,13 +25,13 @@ type BootstrapHandler struct {
 }
 
 func NewBootstrapHandler(dic *di.Container) *BootstrapHandler {
-  editURL := "notion://www.notion.so/{id-}"
+	editURL := "notion://www.notion.so/{id-}"
 
 	return &BootstrapHandler{
-    Bootstrap: dtos.BootstrapResponse{
-      SongEditURL: &editURL,
-    },
-  }
+		Bootstrap: dtos.BootstrapResponse{
+			SongEditURL: &editURL,
+		},
+	}
 }
 
 func (h *BootstrapHandler) UpdateRelease(force bool) {
@@ -47,8 +47,8 @@ func (h *BootstrapHandler) UpdateRelease(force bool) {
 	}
 
 	currentVersion, _ := strings.CutPrefix(*release.TagName, "v")
-  h.Bootstrap.CurrentVersion = currentVersion
-  h.Bootstrap.AppDownloadURL = *release.HTMLURL
+	h.Bootstrap.CurrentVersion = currentVersion
+	h.Bootstrap.AppDownloadURL = *release.HTMLURL
 }
 
 func (h *BootstrapHandler) GetBootstrap(c *gin.Context) {
