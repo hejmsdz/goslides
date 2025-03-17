@@ -52,6 +52,22 @@ func (d DeckRequest) Validate() error {
 		return errors.New("too many items")
 	}
 
+	if d.FontSize > 0 && d.FontSize < 36 {
+		return errors.New("font size too small")
+	}
+
+	if d.FontSize > 72 {
+		return errors.New("font size too large")
+	}
+
+	if d.Ratio != "" && d.Ratio != "16:9" && d.Ratio != "4:3" {
+		return errors.New("unsupported aspect ratio")
+	}
+
+	if d.VerticalAlign != "" && d.VerticalAlign != "top" && d.VerticalAlign != "bottom" && d.VerticalAlign != "center" {
+		return errors.New("unsupported vertical align")
+	}
+
 	for _, item := range d.Items {
 		if err := item.Validate(); err != nil {
 			return err
@@ -69,7 +85,7 @@ func (i DeckItem) Validate() error {
 
 func (d DeckRequest) GetPageConfig() core.PageConfig {
 	ratio := 4.0 / 3.0
-	fontSize := 36
+	fontSize := 52
 
 	if d.Ratio == "16:9" {
 		ratio = 16.0 / 9.0

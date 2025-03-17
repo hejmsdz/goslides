@@ -40,7 +40,7 @@ func (h *DeckHandler) PostDeck(c *gin.Context) {
 	}
 
 	if err := deck.Validate(); err != nil {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error})
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}
 
