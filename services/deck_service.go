@@ -11,7 +11,7 @@ import (
 
 func GetPageConfig(d dtos.DeckRequest) core.PageConfig {
 	ratio := 4.0 / 3.0
-	fontSize := 36
+	fontSize := 52
 
 	if d.Ratio == "16:9" {
 		ratio = 16.0 / 9.0

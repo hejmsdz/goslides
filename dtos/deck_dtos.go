@@ -82,30 +82,3 @@ func (i DeckItem) Validate() error {
 
 	return nil
 }
-
-func (d DeckRequest) GetPageConfig() core.PageConfig {
-	ratio := 4.0 / 3.0
-	fontSize := 52
-
-	if d.Ratio == "16:9" {
-		ratio = 16.0 / 9.0
-	}
-
-	if d.FontSize > 0 {
-		fontSize = d.FontSize
-	}
-
-	pageHeight := 432.0
-	pageWidth := pageHeight * ratio
-
-	return core.PageConfig{
-		PageWidth:     pageWidth,
-		PageHeight:    pageHeight,
-		Margin:        8,
-		FontSize:      fontSize,
-		HintFontSize:  fontSize * 2 / 3,
-		LineSpacing:   1.3,
-		Font:          "./fonts/source-sans-pro.ttf",
-		VerticalAlign: d.VerticalAlign,
-	}
-}
