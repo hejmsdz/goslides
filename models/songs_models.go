@@ -53,7 +53,7 @@ func (s Song) FormatLyrics(options FormatLyricsOptions) []string {
 	if options.Hints {
 		utfTitle := []rune(s.Title)
 		if len(utfTitle) >= 2 {
-			hint := string(utfTitle[0:2])
+			hint := string(utfTitle[0:3])
 			lyrics = append(lyrics, core.HintStartTag+hint+core.HintEndTag)
 		}
 	}
