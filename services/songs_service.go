@@ -3,8 +3,6 @@ package services
 import (
 	"database/sql"
 	"errors"
-	"fmt"
-	"math"
 	"strings"
 
 	"github.com/google/uuid"
@@ -100,65 +98,4 @@ func (s SongsService) DeleteSong(id string) error {
 	}
 
 	return nil
-}
-
-// temporary
-func (s SongsService) Import(n NotionSongsDB) {
-	allSongs := n.FilterSongs("---")
-	fmt.Printf("found %d songs\n", len(allSongs))
-	ids := make([]string, 0)
-
-	for _, ns := range allSongs {
-		var dbSong models.Song
-		result := s.db.Where("uuid", ns.Id).Take(&dbSong)
-		if result.Error != nil {
-			user := models.Song{
-				UUID:  uuid.MustParse(ns.Id),
-				Title: ns.Title,
-				Subtitle: sql.NullString{
-					Valid:  ns.Subtitle != "",
-					String: ns.Subtitle,
-				},
-			}
-
-			s.db.Create(&user)
-			ids = append(ids, ns.Id)
-			fmt.Printf("%s %s created\n", ns.Id, ns.Title)
-		} else if ns.updatedAt.After(dbSong.UpdatedAt) {
-			dbSong.Title = ns.Title
-			dbSong.Subtitle = sql.NullString{
-				Valid:  ns.Subtitle != "",
-				String: ns.Subtitle,
-			}
-
-			s.db.Save(&dbSong)
-			ids = append(ids, ns.Id)
-			fmt.Printf("%s %s updated\n", ns.Id, ns.Title)
-		} else {
-			// fmt.Printf("%s %s is fresh\n", ns.Id, ns.Title)
-		}
-	}
-
-	fmt.Printf("%d songs to import lyrics\n", len(ids))
-
-	perBurst := 5
-	bursts := int(math.Ceil(float64(len(ids)) / float64(perBurst)))
-	for i := 0; i < bursts; i++ {
-		endIdx := (i + 1) * perBurst
-		if endIdx > len(ids) {
-			endIdx = len(ids)
-		}
-		subIds := ids[i*perBurst : endIdx]
-		n.LoadMissingVerses(subIds)
-
-		fmt.Printf("%.1f%% / %d\n", float32(i)/float32(bursts)*100, len(ids))
-		fmt.Printf("loading lyrics for %+v\n", subIds)
-
-		for _, id := range subIds {
-			lyrics := strings.Join(n.LyricsBlocks[id], "\n\n")
-			s.db.Model(&models.Song{}).Where("uuid = ?", id).Update("lyrics", lyrics)
-		}
-	}
-
-	fmt.Println("done!")
 }
