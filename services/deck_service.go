@@ -60,7 +60,7 @@ func BuildTextSlides(d dtos.DeckRequest, songsService SongsService, liturgyServi
 			if err != nil {
 				return slides, false
 			}
-			lyrics := song.FormatLyrics(models.FormatLyricsOptions{Order: item.Order})
+			lyrics := song.FormatLyrics(models.FormatLyricsOptions{Order: item.Order, Hints: d.Hints})
 			slides = append(slides, lyrics)
 		} else if item.Type == PSALM && liturgyOk {
 			alleluiaticSuffix := ", albo: Alleluja"

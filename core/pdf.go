@@ -32,6 +32,9 @@ type PdfSlides struct {
 	maxLines   int
 }
 
+const HintStartTag = "<hint>"
+const HintEndTag = "</hint>"
+
 func (pdf *PdfSlides) Initialize(pageConfig PageConfig) error {
 	pdf.pageConfig = pageConfig
 	pdf.goPdf = &gopdf.GoPdf{}
@@ -164,12 +167,10 @@ func BuildPDF(textDeck [][]string, pageConfig PageConfig) (*gopdf.GoPdf, []Conte
 	for itemIndex, song := range textDeck {
 		hint := ""
 		for verseIndex, verse := range song {
-			/*
-				if strings.HasPrefix(verse, hintStartTag) && strings.HasSuffix(verse, hintEndTag) {
-					hint = verse[len(hintStartTag) : len(verse)-len(hintEndTag)]
-					continue
-				}
-			*/
+			if strings.HasPrefix(verse, HintStartTag) && strings.HasSuffix(verse, HintEndTag) {
+				hint = verse[len(HintStartTag) : len(verse)-len(HintEndTag)]
+				continue
+			}
 
 			pdf.addPage()
 			if hint != "" {

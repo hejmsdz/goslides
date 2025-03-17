@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hejmsdz/goslides/common"
+	"github.com/hejmsdz/goslides/core"
 	"gorm.io/gorm"
 )
 
@@ -39,6 +40,7 @@ func (s *Song) BeforeSave(tx *gorm.DB) (err error) {
 
 type FormatLyricsOptions struct {
 	Raw   bool
+	Hints bool
 	Order []int
 }
 
@@ -47,6 +49,14 @@ func (s Song) FormatLyrics(options FormatLyricsOptions) []string {
 
 	lyrics := make([]string, 0)
 	namedVerses := make(map[string]string)
+
+	if options.Hints {
+		utfTitle := []rune(s.Title)
+		if len(utfTitle) >= 2 {
+			hint := string(utfTitle[0:2])
+			lyrics = append(lyrics, core.HintStartTag+hint+core.HintEndTag)
+		}
+	}
 
 	var order []int
 	if options.Order == nil {
