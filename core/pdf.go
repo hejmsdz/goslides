@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"strings"
@@ -18,12 +18,22 @@ type PageConfig struct {
 	VerticalAlign string
 }
 
+type ContentSlide struct {
+	Type       string `json:"t"`
+	ItemIndex  int    `json:"i"`
+	VerseIndex int    `json:"v"`
+	ChunkIndex int    `json:"c"`
+}
+
 type PdfSlides struct {
 	pageConfig PageConfig
 	goPdf      *gopdf.GoPdf
 	lineHeight float64
 	maxLines   int
 }
+
+const HintStartTag = "<hint>"
+const HintEndTag = "</hint>"
 
 func (pdf *PdfSlides) Initialize(pageConfig PageConfig) error {
 	pdf.pageConfig = pageConfig
@@ -157,8 +167,8 @@ func BuildPDF(textDeck [][]string, pageConfig PageConfig) (*gopdf.GoPdf, []Conte
 	for itemIndex, song := range textDeck {
 		hint := ""
 		for verseIndex, verse := range song {
-			if strings.HasPrefix(verse, hintStartTag) && strings.HasSuffix(verse, hintEndTag) {
-				hint = verse[len(hintStartTag) : len(verse)-len(hintEndTag)]
+			if strings.HasPrefix(verse, HintStartTag) && strings.HasSuffix(verse, HintEndTag) {
+				hint = verse[len(HintStartTag) : len(verse)-len(HintEndTag)]
 				continue
 			}
 
