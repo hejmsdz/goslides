@@ -3,6 +3,7 @@ package routers
 import (
 	"context"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -25,11 +26,15 @@ type BootstrapHandler struct {
 }
 
 func NewBootstrapHandler(dic *di.Container) *BootstrapHandler {
-	editURL := "notion://www.notion.so/{id-}"
+	var editUrl *string
+
+	if editUrlStr, ok := os.LookupEnv("SONG_EDIT_URL"); ok {
+		editUrl = &editUrlStr
+	}
 
 	return &BootstrapHandler{
 		Bootstrap: dtos.BootstrapResponse{
-			SongEditURL: &editURL,
+			SongEditURL: editUrl,
 		},
 	}
 }
