@@ -39,7 +39,7 @@ type LiveSessionResponse struct {
 func NewLiveSessionResponse(c *gin.Context, id string, token string) LiveSessionResponse {
 	return LiveSessionResponse{
 		ID:    id,
-		URL:   common.GetURL(c, fmt.Sprintf("live#%s", id)),
+		URL:   common.GetURL(c, fmt.Sprintf("live/%s", id)),
 		Token: token,
 	}
 }
