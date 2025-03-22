@@ -13,19 +13,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/hejmsdz/goslides/models"
-	"google.golang.org/api/idtoken"
 	"gorm.io/gorm"
 )
 
 type AuthService struct {
 	db               *gorm.DB
 	users            *UsersService
+	idTokenValidator IDTokenValidator
 	jwtKey           []byte
 	jwtSigningMethod jwt.SigningMethod
-	googleClientID   string
 }
 
-func NewAuthService(db *gorm.DB, users *UsersService) *AuthService {
+func NewAuthService(db *gorm.DB, users *UsersService, idTokenValidator IDTokenValidator) *AuthService {
 	jwtKey, err := hex.DecodeString(os.Getenv("JWT_KEY"))
 
 	if err != nil {
@@ -41,12 +40,12 @@ func NewAuthService(db *gorm.DB, users *UsersService) *AuthService {
 		users:            users,
 		jwtKey:           jwtKey,
 		jwtSigningMethod: jwt.SigningMethodHS256,
-		googleClientID:   os.Getenv("GOOGLE_CLIENT_ID"),
+		idTokenValidator: idTokenValidator,
 	}
 }
 
 func (s *AuthService) GetEmailFromGoogleIDToken(ctx context.Context, idToken string) (string, error) {
-	payload, err := idtoken.Validate(ctx, idToken, s.googleClientID)
+	payload, err := s.idTokenValidator.Validate(ctx, idToken)
 	if err != nil {
 		return "", err
 	}

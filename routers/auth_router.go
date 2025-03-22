@@ -13,6 +13,7 @@ import (
 func RegisterAuthRoutes(r gin.IRouter, dic *di.Container) {
 	h := NewAuthHandler(dic)
 
+	r.GET("/auth/me", h.Auth.AuthMiddleware, h.GetAuthMe)
 	r.POST("/auth/google", h.PostAuthGoogle)
 	r.POST("/auth/refresh", h.PostAuthRefresh)
 }
@@ -27,6 +28,15 @@ func NewAuthHandler(dic *di.Container) *AuthHandler {
 		Users: dic.Users,
 		Auth:  dic.Auth,
 	}
+}
+
+func (h *AuthHandler) GetAuthMe(c *gin.Context) {
+	user, err := h.Users.GetUser(c.MustGet("userUUID").(string))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+	c.JSON(http.StatusOK, dtos.NewAuthMeResponse(user))
 }
 
 func (h *AuthHandler) PostAuthGoogle(c *gin.Context) {
@@ -47,7 +57,7 @@ func (h *AuthHandler) PostAuthGoogle(c *gin.Context) {
 	user, err := h.Users.GetUserByEmail(email)
 	if err != nil {
 		log.Printf("User with email %s not found", email)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid credentials"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		return
 	}
 

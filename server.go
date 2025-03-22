@@ -1,6 +1,8 @@
 package main
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/hejmsdz/goslides/di"
 	"github.com/hejmsdz/goslides/routers"
@@ -20,21 +22,32 @@ func corsMiddleware(c *gin.Context) {
 }
 
 type Server struct {
-	container *di.Container
-	addr      string
+	Router     *gin.Engine
+	HttpServer *http.Server
 }
 
-func (srv Server) Run() {
+func NewServer(container *di.Container) *Server {
 	r := gin.Default()
 	r.Use(corsMiddleware)
 
 	r.Static("/public", "./public")
 	v2 := r.Group("/v2")
-	routers.RegisterBootstrapRoutes(v2, srv.container)
-	routers.RegisterAuthRoutes(v2, srv.container)
-	routers.RegisterSongRoutes(v2, srv.container)
-	routers.RegisterDeckRoutes(v2, srv.container)
-	routers.RegisterLiturgyRoutes(v2, srv.container)
-	routers.RegisterLiveRoutes(v2, srv.container)
-	r.Run(srv.addr)
+	routers.RegisterBootstrapRoutes(v2, container)
+	routers.RegisterAuthRoutes(v2, container)
+	routers.RegisterSongRoutes(v2, container)
+	routers.RegisterDeckRoutes(v2, container)
+	routers.RegisterLiturgyRoutes(v2, container)
+	routers.RegisterLiveRoutes(v2, container)
+
+	return &Server{
+		Router: r,
+	}
+}
+
+func (srv *Server) Run(addr string) error {
+	srv.HttpServer = &http.Server{
+		Addr:    addr,
+		Handler: srv.Router.Handler(),
+	}
+	return srv.HttpServer.ListenAndServe()
 }
