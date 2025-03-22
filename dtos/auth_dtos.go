@@ -1,10 +1,15 @@
 package dtos
 
-type GoogleAuthRequest struct {
+type AuthGoogleRequest struct {
 	IDToken string `json:"idToken"`
 }
 
-type GoogleAuthResponse struct {
-	Token string `json:"token"`
-	Name  string `json:"name"`
+type AuthRefreshRequest struct {
+	RefreshToken string `json:"refreshToken"`
+}
+
+type AuthResponse struct {
+	AccessToken  string `json:"token"`
+	RefreshToken string `json:"refreshToken"`
+	Name         string `json:"name"`
 }

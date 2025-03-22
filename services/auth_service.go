@@ -14,16 +14,18 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/hejmsdz/goslides/models"
 	"google.golang.org/api/idtoken"
+	"gorm.io/gorm"
 )
 
 type AuthService struct {
-	Users            *UsersService
+	db               *gorm.DB
+	users            *UsersService
 	jwtKey           []byte
 	jwtSigningMethod jwt.SigningMethod
 	googleClientID   string
 }
 
-func NewAuthService(users *UsersService) *AuthService {
+func NewAuthService(db *gorm.DB, users *UsersService) *AuthService {
 	jwtKey, err := hex.DecodeString(os.Getenv("JWT_KEY"))
 
 	if err != nil {
@@ -35,7 +37,8 @@ func NewAuthService(users *UsersService) *AuthService {
 	}
 
 	return &AuthService{
-		Users:            users,
+		db:               db,
+		users:            users,
 		jwtKey:           jwtKey,
 		jwtSigningMethod: jwt.SigningMethodHS256,
 		googleClientID:   os.Getenv("GOOGLE_CLIENT_ID"),
@@ -56,16 +59,16 @@ func (s *AuthService) GetEmailFromGoogleIDToken(ctx context.Context, idToken str
 	return email, nil
 }
 
-func (s *AuthService) GenerateToken(user *models.User) (string, error) {
+func (s *AuthService) GenerateAccessToken(user *models.User) (string, error) {
 	token := jwt.NewWithClaims(s.jwtSigningMethod, jwt.MapClaims{
 		"sub": user.UUID,
-		"exp": time.Now().Add(time.Hour * 3).Unix(),
+		"exp": time.Now().Add(time.Minute * 10).Unix(),
 	})
 
 	return token.SignedString(s.jwtKey)
 }
 
-func (s *AuthService) ValidateToken(tokenString string) (string, error) {
+func (s *AuthService) ValidateAccessToken(tokenString string) (string, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if token.Method != s.jwtSigningMethod || token.Method.Alg() != s.jwtSigningMethod.Alg() {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -87,6 +90,33 @@ func (s *AuthService) ValidateToken(tokenString string) (string, error) {
 	return "", errors.New("failed to read claims from token")
 }
 
+func (s *AuthService) GenerateRefreshToken(user *models.User) (string, error) {
+	rt := models.NewRefreshToken(user.ID)
+	result := s.db.Create(rt)
+	if result.Error != nil {
+		return "", result.Error
+	}
+
+	return rt.Token, nil
+}
+
+func (s *AuthService) ValidateRefreshToken(tokenString string) (*models.RefreshToken, error) {
+	var rt *models.RefreshToken
+	result := s.db.Preload("User").Where("token", tokenString).Where("expires_at > current_timestamp").Take(&rt)
+
+	if result.Error != nil {
+		return nil, errors.New("refresh token not found")
+	}
+
+	rt.Regenerate()
+	result = s.db.Save(rt)
+	if result.Error != nil {
+		return nil, errors.New("failed to regenerate the refresh token")
+	}
+
+	return rt, nil
+}
+
 func (s *AuthService) AuthMiddleware(c *gin.Context) {
 	authHeader := c.Request.Header.Get("Authorization")
 	token, isBearer := strings.CutPrefix(authHeader, "Bearer ")
@@ -97,19 +127,22 @@ func (s *AuthService) AuthMiddleware(c *gin.Context) {
 		return
 	}
 
-	userUuid, err := s.ValidateToken(token)
+	userUUID, err := s.ValidateAccessToken(token)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
 		c.Abort()
 		return
 	}
 
-	user, err := s.Users.GetUser(userUuid)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
-		c.Abort()
-		return
-	}
-	c.Set("user", user)
+	/*
+		user, err := s.users.GetUser(userUuid)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+			c.Abort()
+			return
+		}
+		c.Set("user", user)
+	*/
+	c.Set("userUUID", userUUID)
 	c.Next()
 }
