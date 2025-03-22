@@ -99,7 +99,7 @@ func (s *AuthService) GenerateRefreshToken(user *models.User) (string, error) {
 	return rt.Token, nil
 }
 
-func (s *AuthService) ValidateRefreshToken(tokenString string) (*models.RefreshToken, error) {
+func (s *AuthService) findRefreshToken(tokenString string) (*models.RefreshToken, error) {
 	var rt *models.RefreshToken
 	result := s.db.Preload("User").Where("token", tokenString).Where("expires_at > current_timestamp").Take(&rt)
 
@@ -107,13 +107,32 @@ func (s *AuthService) ValidateRefreshToken(tokenString string) (*models.RefreshT
 		return nil, errors.New("refresh token not found")
 	}
 
+	return rt, nil
+}
+
+func (s *AuthService) ValidateRefreshToken(tokenString string) (*models.RefreshToken, error) {
+	rt, err := s.findRefreshToken(tokenString)
+	if err != nil {
+		return nil, err
+	}
+
 	rt.Regenerate()
-	result = s.db.Save(rt)
+	result := s.db.Save(rt)
 	if result.Error != nil {
 		return nil, errors.New("failed to regenerate the refresh token")
 	}
 
 	return rt, nil
+}
+
+func (s *AuthService) DeleteRefreshToken(tokenString string) error {
+	rt, err := s.findRefreshToken(tokenString)
+	if err != nil {
+		return err
+	}
+
+	result := s.db.Delete(rt)
+	return result.Error
 }
 
 func (s *AuthService) AuthMiddleware(c *gin.Context) {

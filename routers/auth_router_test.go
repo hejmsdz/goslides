@@ -49,6 +49,14 @@ func postAuthRefresh(t *testing.T, refreshToken string) (*httptest.ResponseRecor
 	})
 }
 
+func deleteAuthRefresh(t *testing.T, refreshToken string) (*httptest.ResponseRecorder, interface{}, *dtos.ErrorResponse) {
+	return tests.Request[interface{}](t, testRouter, tests.RequestOptions{
+		Method: "DELETE",
+		Path:   "/auth/refresh",
+		Body:   &gin.H{"refreshToken": refreshToken},
+	})
+}
+
 func testAuthMe(t *testing.T, token string, shouldBeValid bool, expectedUserEmail string) {
 	w, resp, errResp := getAuthMe(t, token)
 	if shouldBeValid {
@@ -104,4 +112,14 @@ func TestRefreshToken(t *testing.T) {
 	assert.Equal(t, 401, w.Code, "should not accept a reused refresh token")
 	assert.Equal(t, "refresh token rejected", errResp.Error)
 	assert.Nil(t, replayedRefreshResp)
+}
+
+func TestDeleteRefreshToken(t *testing.T) {
+	_, authResp, _ := postAuthGoogle(t, "valid-token:john.doe@gmail.com")
+
+	w, _, _ := deleteAuthRefresh(t, authResp.RefreshToken)
+	assert.Equal(t, 204, w.Code)
+
+	w, _, _ = postAuthRefresh(t, authResp.RefreshToken)
+	assert.Equal(t, 401, w.Code, "deleted refresh token should not be usable")
 }

@@ -16,6 +16,7 @@ func RegisterAuthRoutes(r gin.IRouter, dic *di.Container) {
 	r.GET("/auth/me", h.Auth.AuthMiddleware, h.GetAuthMe)
 	r.POST("/auth/google", h.PostAuthGoogle)
 	r.POST("/auth/refresh", h.PostAuthRefresh)
+	r.DELETE("/auth/refresh", h.DeleteAuthRefresh)
 }
 
 type AuthHandler struct {
@@ -106,4 +107,22 @@ func (h *AuthHandler) PostAuthRefresh(c *gin.Context) {
 		RefreshToken: refreshToken.Token,
 		Name:         refreshToken.User.DisplayName,
 	})
+}
+
+func (h *AuthHandler) DeleteAuthRefresh(c *gin.Context) {
+	var data dtos.AuthRefreshRequest
+
+	if err := c.ShouldBind(&data); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := h.Auth.DeleteRefreshToken(data.RefreshToken)
+
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token rejected"})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }
