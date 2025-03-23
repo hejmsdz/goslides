@@ -81,7 +81,7 @@ func (h *LiveHandler) PutLive(c *gin.Context) {
 		id := h.Live.GenerateLiveSessionId()
 		session := h.Live.CreateSession(id, input)
 
-		resp := dtos.NewLiveSessionResponse(c, name, session.Token)
+		resp := dtos.NewLiveSessionResponse(c, id, session.Token)
 		c.JSON(http.StatusOK, resp)
 	}
 }

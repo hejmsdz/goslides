@@ -19,7 +19,7 @@ type MemberChannel chan dtos.Event
 type LiveSession struct {
 	Deck            dtos.DeckRequest `json:"deck"`
 	CurrentPage     int              `json:"currentPage"`
-	Token           string
+	Token           string           `json:"-"`
 	members         []MemberChannel
 	expirationTimer *time.Timer
 }
@@ -31,6 +31,7 @@ func NewLiveService() *LiveService {
 }
 
 func (l *LiveService) GetSession(id string) (*LiveSession, bool) {
+	fmt.Printf("current sessions: %+v\n", l.sessions)
 	session, ok := l.sessions[id]
 
 	return session, ok
