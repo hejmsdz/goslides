@@ -1,6 +1,7 @@
 package routers
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -105,6 +106,7 @@ func (h *LiveHandler) GetLive(c *gin.Context) {
 	stream := ls.AddMember()
 
 	c.Stream(func(w io.Writer) bool {
+		fmt.Fprintf(w, "retry: 5000\n\n")
 		c.SSEvent("start", ls)
 
 		return false
