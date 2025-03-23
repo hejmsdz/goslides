@@ -31,7 +31,6 @@ func NewLiveService() *LiveService {
 }
 
 func (l *LiveService) GetSession(id string) (*LiveSession, bool) {
-	fmt.Printf("current sessions: %+v\n", l.sessions)
 	session, ok := l.sessions[id]
 
 	return session, ok
@@ -122,6 +121,8 @@ func (l *LiveService) ChangeSessionPage(id string, currentPage int) {
 	if !ok {
 		return
 	}
+
+	session.CurrentPage = currentPage
 
 	for _, member := range session.members {
 		member <- dtos.Event{
