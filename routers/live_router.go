@@ -79,10 +79,14 @@ func (h *LiveHandler) PutLive(c *gin.Context) {
 		resp := dtos.NewLiveSessionResponse(c, name, prevSession.Token)
 		c.JSON(http.StatusOK, resp)
 	} else {
-		id := h.Live.GenerateLiveSessionId()
-		session := h.Live.CreateSession(id, input)
+		if !h.Live.ValidateLiveSessionId(name) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid live session ID"})
+			return
 
-		resp := dtos.NewLiveSessionResponse(c, id, session.Token)
+		}
+		session := h.Live.CreateSession(name, input)
+
+		resp := dtos.NewLiveSessionResponse(c, name, session.Token)
 		c.JSON(http.StatusOK, resp)
 	}
 }

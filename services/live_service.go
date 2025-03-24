@@ -4,6 +4,7 @@ import (
 	"crypto/subtle"
 	"fmt"
 	"math/rand/v2"
+	"regexp"
 	"time"
 
 	"github.com/hejmsdz/goslides/common"
@@ -46,6 +47,12 @@ func (l *LiveService) ValidateToken(id string, token string) bool {
 	tokenBytes := []byte(token)
 
 	return subtle.ConstantTimeCompare(correctTokenBytes, tokenBytes) == 1
+}
+
+var sessionIdRegexp = regexp.MustCompile(`^\d{4}$`)
+
+func (l *LiveService) ValidateLiveSessionId(id string) bool {
+	return sessionIdRegexp.MatchString(id)
 }
 
 func (l *LiveService) GenerateLiveSessionId() string {
