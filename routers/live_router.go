@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hejmsdz/goslides/di"
@@ -116,6 +117,7 @@ func (h *LiveHandler) GetLive(c *gin.Context) {
 		return false
 	})
 
+	keepAliveTicker := time.NewTicker(15 * time.Second)
 	c.Stream(func(w io.Writer) bool {
 		select {
 		case event, ok := <-stream:
@@ -125,7 +127,11 @@ func (h *LiveHandler) GetLive(c *gin.Context) {
 
 			c.SSEvent(event.Type, event.Data)
 			return true
+		case <-keepAliveTicker.C:
+			c.SSEvent("keepAlive", "")
+			return true
 		case <-c.Request.Context().Done():
+			keepAliveTicker.Stop()
 			ls.RemoveMember(stream)
 			return false
 		}
