@@ -17,11 +17,13 @@ import (
 )
 
 type AuthService struct {
-	db               *gorm.DB
-	users            *UsersService
-	idTokenValidator IDTokenValidator
-	jwtKey           []byte
-	jwtSigningMethod jwt.SigningMethod
+	db                   *gorm.DB
+	users                *UsersService
+	idTokenValidator     IDTokenValidator
+	jwtKey               []byte
+	jwtSigningMethod     jwt.SigningMethod
+	accessTokenDuration  time.Duration
+	refreshTokenDuration time.Duration
 }
 
 func NewAuthService(db *gorm.DB, users *UsersService, idTokenValidator IDTokenValidator) *AuthService {
@@ -35,12 +37,24 @@ func NewAuthService(db *gorm.DB, users *UsersService, idTokenValidator IDTokenVa
 		panic("JWT_KEY is too weak: must be at least 32 bytes")
 	}
 
+	accessTokenDuration, err := time.ParseDuration(os.Getenv("ACCESS_TOKEN_DURATION"))
+	if err != nil {
+		panic(fmt.Sprintf("failed to read ACCESS_TOKEN_DURATION: %s", err.Error()))
+	}
+
+	refreshTokenDuration, err := time.ParseDuration(os.Getenv("REFRESH_TOKEN_DURATION"))
+	if err != nil {
+		panic(fmt.Sprintf("failed to read REFRESH_TOKEN_DURATION: %s", err.Error()))
+	}
+
 	return &AuthService{
-		db:               db,
-		users:            users,
-		jwtKey:           jwtKey,
-		jwtSigningMethod: jwt.SigningMethodHS256,
-		idTokenValidator: idTokenValidator,
+		db:                   db,
+		users:                users,
+		jwtKey:               jwtKey,
+		jwtSigningMethod:     jwt.SigningMethodHS256,
+		idTokenValidator:     idTokenValidator,
+		accessTokenDuration:  accessTokenDuration,
+		refreshTokenDuration: refreshTokenDuration,
 	}
 }
 
@@ -58,13 +72,17 @@ func (s *AuthService) GetEmailFromGoogleIDToken(ctx context.Context, idToken str
 	return email, nil
 }
 
-func (s *AuthService) GenerateAccessToken(user *models.User) (string, error) {
+func (s *AuthService) GenerateAccessTokenWithExpiration(user *models.User, expiresAt time.Time) (string, error) {
 	token := jwt.NewWithClaims(s.jwtSigningMethod, jwt.MapClaims{
 		"sub": user.UUID,
-		"exp": time.Now().Add(time.Minute * 10).Unix(),
+		"exp": expiresAt.Unix(),
 	})
 
 	return token.SignedString(s.jwtKey)
+}
+
+func (s *AuthService) GenerateAccessToken(user *models.User) (string, error) {
+	return s.GenerateAccessTokenWithExpiration(user, time.Now().Add(s.accessTokenDuration))
 }
 
 func (s *AuthService) ValidateAccessToken(tokenString string) (string, error) {
@@ -91,7 +109,7 @@ func (s *AuthService) ValidateAccessToken(tokenString string) (string, error) {
 
 func (s *AuthService) GenerateRefreshToken(user *models.User) (string, error) {
 	rt := models.NewRefreshToken(user.ID)
-	result := s.db.Create(rt)
+	result := s.db.Create(&rt)
 	if result.Error != nil {
 		return "", result.Error
 	}
@@ -147,7 +165,14 @@ func (s *AuthService) AuthMiddleware(c *gin.Context) {
 
 	userUUID, err := s.ValidateAccessToken(token)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+		message := "invalid token"
+		if strings.Contains(err.Error(), "token is expired") {
+			message = "token expired"
+		}
+
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": message,
+		})
 		c.Abort()
 		return
 	}
