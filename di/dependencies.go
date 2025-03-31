@@ -16,10 +16,25 @@ type Container struct {
 
 func NewContainer(db *gorm.DB) *Container {
 	users := services.NewUsersService(db)
+	idTokenValidator := services.NewGoogleIDTokenValidator()
 
 	return &Container{
 		DB:      db,
-		Auth:    services.NewAuthService(users),
+		Auth:    services.NewAuthService(db, users, idTokenValidator),
+		Songs:   services.NewSongsService(db),
+		Liturgy: services.NewLiturgyService(),
+		Live:    services.NewLiveService(),
+		Users:   users,
+	}
+}
+
+func NewTestContainer(db *gorm.DB) *Container {
+	users := services.NewUsersService(db)
+	idTokenValidator := services.NewMockIDTokenValidator()
+
+	return &Container{
+		DB:      db,
+		Auth:    services.NewAuthService(db, users, idTokenValidator),
 		Songs:   services.NewSongsService(db),
 		Liturgy: services.NewLiturgyService(),
 		Live:    services.NewLiveService(),

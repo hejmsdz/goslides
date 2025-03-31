@@ -2,6 +2,7 @@ package common
 
 import (
 	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"regexp"
 	"strings"
@@ -25,6 +26,15 @@ func GetRandomString(length int) string {
 	buffer := make([]byte, length)
 	rand.Read(buffer)
 	return fmt.Sprintf("%x", buffer)
+}
+
+func GetSecureRandomString(length int) (string, error) {
+	buffer := make([]byte, length)
+	_, err := rand.Read(buffer)
+	if err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(buffer), nil
 }
 
 func GetURL(c *gin.Context, path string) string {
