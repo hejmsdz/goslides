@@ -39,7 +39,7 @@ func GetPageConfig(d dtos.DeckRequest) core.PageConfig {
 const PSALM = "PSALM"
 const ACCLAMATION = "ACCLAMATION"
 
-func BuildTextSlides(d dtos.DeckRequest, songsService SongsService, liturgyService LiturgyService) ([][]string, bool) {
+func BuildTextSlides(d dtos.DeckRequest, songsService *SongsService, liturgyService *LiturgyService) ([][]string, bool) {
 	hasLiturgy := false
 	for _, item := range d.Items {
 		if item.Type == PSALM || item.Type == ACCLAMATION {

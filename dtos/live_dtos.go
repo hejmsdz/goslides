@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/gin-gonic/gin"
 	"github.com/hejmsdz/goslides/common"
 )
 
@@ -36,10 +35,10 @@ type LiveSessionResponse struct {
 	Token string `json:"token"`
 }
 
-func NewLiveSessionResponse(c *gin.Context, id string, token string) LiveSessionResponse {
+func NewLiveSessionResponse(id string, token string) LiveSessionResponse {
 	return LiveSessionResponse{
 		ID:    id,
-		URL:   common.GetURL(c, fmt.Sprintf("live/%s", id)),
+		URL:   common.GetFrontendURL(fmt.Sprintf("live/%s", id)),
 		Token: token,
 	}
 }

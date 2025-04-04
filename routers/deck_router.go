@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"github.com/hejmsdz/goslides/common"
 	"github.com/hejmsdz/goslides/core"
@@ -21,14 +22,14 @@ func RegisterDeckRoutes(r gin.IRouter, dic *di.Container) {
 }
 
 type DeckHandler struct {
-	Songs   services.SongsService
-	Liturgy services.LiturgyService
+	Songs   *services.SongsService
+	Liturgy *services.LiturgyService
 }
 
 func NewDeckHandler(dic *di.Container) *DeckHandler {
 	return &DeckHandler{
-		Songs:   *dic.Songs,
-		Liturgy: *dic.Liturgy,
+		Songs:   dic.Songs,
+		Liturgy: dic.Liturgy,
 	}
 }
 
@@ -50,7 +51,6 @@ func (h *DeckHandler) PostDeck(c *gin.Context) {
 		return
 	}
 
-	uid := common.GetRandomString(6)
 	extension := ""
 	var file io.Reader
 	var contents []core.ContentSlide
@@ -71,13 +71,13 @@ func (h *DeckHandler) PostDeck(c *gin.Context) {
 		}
 	}
 
-	fileName := uid + extension
+	fileName := uuid.New().String() + extension
 	common.SaveTemporaryFile(file, fileName)
 
 	if !deck.Contents {
 		contents = nil
 	}
 
-	resp := dtos.NewDeckResponse(common.GetPublicURL(c, fileName), contents)
+	resp := dtos.NewDeckResponse(common.GetPublicURL(fileName), contents)
 	c.JSON(http.StatusOK, resp)
 }

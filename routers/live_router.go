@@ -17,10 +17,10 @@ func RegisterLiveRoutes(r gin.IRouter, dic *di.Container) {
 	h := NewLiveHandler(dic)
 
 	r.POST("/live", h.PostLive)
-	r.PUT("/live/:name", h.PutLive)
-	r.GET("/live/:name", h.GetLive)
-	r.DELETE("/live/:name", h.DeleteLive)
-	r.POST("/live/:name/page", h.PostLivePage)
+	r.PUT("/live/:key", h.PutLive)
+	r.GET("/live/:key", h.GetLive)
+	r.DELETE("/live/:key", h.DeleteLive)
+	r.POST("/live/:key/page", h.PostLivePage)
 }
 
 type LiveHandler struct {
@@ -45,15 +45,19 @@ func (h *LiveHandler) PostLive(c *gin.Context) {
 		return
 	}
 
-	id := h.Live.GenerateLiveSessionId()
-	session := h.Live.CreateSession(id, input)
+	key := h.Live.GenerateLiveSessionKey()
+	session, err := h.Live.CreateSession(key, input)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
-	resp := dtos.NewLiveSessionResponse(c, id, session.Token)
+	resp := dtos.NewLiveSessionResponse(c, key, session.Token)
 	c.JSON(http.StatusOK, resp)
 }
 
 func (h *LiveHandler) PutLive(c *gin.Context) {
-	name := c.Param("name")
+	key := c.Param("key")
 	token := c.Query("token")
 
 	var input dtos.LiveSessionRequest
@@ -67,35 +71,39 @@ func (h *LiveHandler) PutLive(c *gin.Context) {
 		return
 	}
 
-	prevSession, exists := h.Live.GetSession(name)
+	prevSession, exists := h.Live.GetSession(key)
 	if exists {
-		if !h.Live.ValidateToken(name, token) {
+		if !h.Live.ValidateToken(key, token) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			return
 		}
 
-		h.Live.UpdateSession(name, input)
-		h.Live.ExtendSessionTime(name)
+		h.Live.UpdateSession(key, input)
+		h.Live.ExtendSessionTime(key)
 
-		resp := dtos.NewLiveSessionResponse(c, name, prevSession.Token)
+		resp := dtos.NewLiveSessionResponse(c, key, prevSession.Token)
 		c.JSON(http.StatusOK, resp)
 	} else {
-		if !h.Live.ValidateLiveSessionId(name) {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid live session ID"})
+		if !h.Live.ValidateLiveSessionKey(key) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid live session key"})
 			return
 
 		}
-		session := h.Live.CreateSession(name, input)
+		session, err := h.Live.CreateSession(key, input)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 
-		resp := dtos.NewLiveSessionResponse(c, name, session.Token)
+		resp := dtos.NewLiveSessionResponse(c, key, session.Token)
 		c.JSON(http.StatusOK, resp)
 	}
 }
 
 func (h *LiveHandler) GetLive(c *gin.Context) {
-	name := c.Param("name")
+	key := c.Param("key")
 
-	ls, ok := h.Live.GetSession(name)
+	ls, ok := h.Live.GetSession(key)
 
 	if !ok {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Live session not found"})
@@ -139,35 +147,35 @@ func (h *LiveHandler) GetLive(c *gin.Context) {
 }
 
 func (h *LiveHandler) DeleteLive(c *gin.Context) {
-	name := c.Param("name")
+	key := c.Param("key")
 	token := c.Query("token")
 
-	_, ok := h.Live.GetSession(name)
+	_, ok := h.Live.GetSession(key)
 	if !ok {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Live session not found"})
 		return
 	}
 
-	if !h.Live.ValidateToken(name, token) {
+	if !h.Live.ValidateToken(key, token) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 		return
 	}
 
-	h.Live.DeleteSession(name)
+	h.Live.DeleteSession(key)
 	c.Writer.WriteHeader(http.StatusNoContent)
 }
 
 func (h *LiveHandler) PostLivePage(c *gin.Context) {
-	name := c.Param("name")
+	key := c.Param("key")
 	token := c.Query("token")
-	_, ok := h.Live.GetSession(name)
+	_, ok := h.Live.GetSession(key)
 
 	if !ok {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Live session not found"})
 		return
 	}
 
-	if !h.Live.ValidateToken(name, token) {
+	if !h.Live.ValidateToken(key, token) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 		return
 	}
@@ -178,8 +186,8 @@ func (h *LiveHandler) PostLivePage(c *gin.Context) {
 		return
 	}
 
-	h.Live.ChangeSessionPage(name, page)
-	h.Live.ExtendSessionTime(name)
+	h.Live.ChangeSessionPage(key, page)
+	h.Live.ExtendSessionTime(key)
 
 	c.Writer.WriteHeader(http.StatusNoContent)
 }

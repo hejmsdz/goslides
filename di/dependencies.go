@@ -17,13 +17,15 @@ type Container struct {
 func NewContainer(db *gorm.DB) *Container {
 	users := services.NewUsersService(db)
 	idTokenValidator := services.NewGoogleIDTokenValidator()
+	songs := services.NewSongsService(db)
+	liturgy := services.NewLiturgyService()
 
 	return &Container{
 		DB:      db,
 		Auth:    services.NewAuthService(db, users, idTokenValidator),
-		Songs:   services.NewSongsService(db),
-		Liturgy: services.NewLiturgyService(),
-		Live:    services.NewLiveService(),
+		Songs:   songs,
+		Liturgy: liturgy,
+		Live:    services.NewLiveService(songs, liturgy),
 		Users:   users,
 	}
 }
@@ -31,13 +33,15 @@ func NewContainer(db *gorm.DB) *Container {
 func NewTestContainer(db *gorm.DB) *Container {
 	users := services.NewUsersService(db)
 	idTokenValidator := services.NewMockIDTokenValidator()
+	songs := services.NewSongsService(db)
+	liturgy := services.NewLiturgyService()
 
 	return &Container{
 		DB:      db,
 		Auth:    services.NewAuthService(db, users, idTokenValidator),
-		Songs:   services.NewSongsService(db),
-		Liturgy: services.NewLiturgyService(),
-		Live:    services.NewLiveService(),
+		Songs:   songs,
+		Liturgy: liturgy,
+		Live:    services.NewLiveService(songs, liturgy),
 		Users:   users,
 	}
 }
