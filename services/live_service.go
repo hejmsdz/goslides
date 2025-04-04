@@ -2,43 +2,51 @@ package services
 
 import (
 	"crypto/subtle"
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"regexp"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/hejmsdz/goslides/common"
+	"github.com/hejmsdz/goslides/core"
 	"github.com/hejmsdz/goslides/dtos"
 )
 
 type LiveService struct {
 	sessions map[string]*LiveSession
+	Songs    *SongsService
+	Liturgy  *LiturgyService
 }
 
 type MemberChannel chan dtos.Event
 
 type LiveSession struct {
-	Deck            dtos.DeckRequest `json:"deck"`
-	CurrentPage     int              `json:"currentPage"`
-	Token           string           `json:"-"`
+	URL             string `json:"url"`
+	CurrentPage     int    `json:"currentPage"`
+	Token           string `json:"-"`
+	fileName        string
 	members         []MemberChannel
 	expirationTimer *time.Timer
 }
 
-func NewLiveService() *LiveService {
+func NewLiveService(songs *SongsService, liturgy *LiturgyService) *LiveService {
 	return &LiveService{
 		sessions: make(map[string]*LiveSession),
+		Songs:    songs,
+		Liturgy:  liturgy,
 	}
 }
 
-func (l *LiveService) GetSession(id string) (*LiveSession, bool) {
-	session, ok := l.sessions[id]
+func (l *LiveService) GetSession(key string) (*LiveSession, bool) {
+	session, ok := l.sessions[key]
 
 	return session, ok
 }
 
-func (l *LiveService) ValidateToken(id string, token string) bool {
-	session, ok := l.GetSession(id)
+func (l *LiveService) ValidateToken(key string, token string) bool {
+	session, ok := l.GetSession(key)
 	if !ok {
 		return false
 	}
@@ -49,37 +57,63 @@ func (l *LiveService) ValidateToken(id string, token string) bool {
 	return subtle.ConstantTimeCompare(correctTokenBytes, tokenBytes) == 1
 }
 
-var sessionIdRegexp = regexp.MustCompile(`^\d{4}$`)
+var sessionKeyRegexp = regexp.MustCompile(`^\d{4}$`)
 
-func (l *LiveService) ValidateLiveSessionId(id string) bool {
-	return sessionIdRegexp.MatchString(id)
+func (l *LiveService) ValidateLiveSessionKey(key string) bool {
+	return sessionKeyRegexp.MatchString(key)
 }
 
-func (l *LiveService) GenerateLiveSessionId() string {
+func (l *LiveService) GenerateLiveSessionKey() string {
 	for {
-		id := fmt.Sprintf("%04d", rand.IntN(10000))
-		if _, ok := l.sessions[id]; !ok {
-			return id
+		key := fmt.Sprintf("%04d", rand.IntN(10000))
+		if _, ok := l.sessions[key]; !ok {
+			return key
 		}
 	}
 }
 
-func (l *LiveService) CreateSession(id string, input dtos.LiveSessionRequest) *LiveSession {
+func (l *LiveService) GenerateLiveSessionDeck(input dtos.LiveSessionRequest) (string, error) {
+	textDeck, ok := BuildTextSlides(input.Deck, l.Songs, l.Liturgy)
+	if !ok {
+		return "", errors.New("failed to build text deck")
+	}
+
+	file, _, err := core.BuildPDF(textDeck, GetPageConfig(input.Deck))
+	if err != nil {
+		return "", err
+	}
+
+	fileName := uuid.New().String() + ".pdf"
+	return fileName, common.SavePublicFile(file, fileName)
+}
+
+func (l *LiveService) CreateSession(key string, input dtos.LiveSessionRequest) (*LiveSession, error) {
+	fileName, err := l.GenerateLiveSessionDeck(input)
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := common.GetSecureRandomString(16)
+	if err != nil {
+		return nil, err
+	}
+
 	session := &LiveSession{
-		Deck:        input.Deck,
+		URL:         common.GetPublicURL(fileName),
 		CurrentPage: input.CurrentPage,
-		Token:       common.GetRandomString(16),
+		Token:       token,
+		fileName:    fileName,
 		members:     make([]MemberChannel, 0),
 	}
 
-	l.sessions[id] = session
-	l.ExtendSessionTime(id)
+	l.sessions[key] = session
+	l.ExtendSessionTime(key)
 
-	return session
+	return session, nil
 }
 
-func (l *LiveService) ExtendSessionTime(id string) {
-	session, ok := l.GetSession(id)
+func (l *LiveService) ExtendSessionTime(key string) {
+	session, ok := l.GetSession(key)
 	if !ok {
 		return
 	}
@@ -89,12 +123,12 @@ func (l *LiveService) ExtendSessionTime(id string) {
 	}
 
 	session.expirationTimer = time.AfterFunc(2*time.Hour, func() {
-		l.DeleteSession(id)
+		l.DeleteSession(key)
 	})
 }
 
-func (l *LiveService) DeleteSession(id string) {
-	session, ok := l.GetSession(id)
+func (l *LiveService) DeleteSession(key string) {
+	session, ok := l.GetSession(key)
 	if !ok {
 		return
 	}
@@ -103,28 +137,43 @@ func (l *LiveService) DeleteSession(id string) {
 		close(member)
 	}
 
-	delete(l.sessions, id)
+	common.DeletePublicFile(session.fileName)
+
+	delete(l.sessions, key)
 }
 
-func (l *LiveService) UpdateSession(id string, input dtos.LiveSessionRequest) {
-	session, ok := l.GetSession(id)
+func (l *LiveService) UpdateSession(key string, input dtos.LiveSessionRequest) error {
+	session, ok := l.GetSession(key)
 	if !ok {
-		return
+		return errors.New("session not found")
 	}
 
-	session.Deck = input.Deck
+	fileName, err := l.GenerateLiveSessionDeck(input)
+	if err != nil {
+		return err
+	}
+
+	common.DeletePublicFile(session.fileName)
+
+	session.fileName = fileName
+	session.URL = common.GetPublicURL(fileName)
 	session.CurrentPage = input.CurrentPage
 
 	for _, member := range session.members {
 		member <- dtos.Event{
 			Type: "start",
-			Data: dtos.JsonObject{"deck": input.Deck, "currentPage": input.CurrentPage},
+			Data: dtos.JsonObject{
+				"url":         session.URL,
+				"currentPage": session.CurrentPage,
+			},
 		}
 	}
+
+	return nil
 }
 
-func (l *LiveService) ChangeSessionPage(id string, currentPage int) {
-	session, ok := l.GetSession(id)
+func (l *LiveService) ChangeSessionPage(key string, currentPage int) {
+	session, ok := l.GetSession(key)
 	if !ok {
 		return
 	}

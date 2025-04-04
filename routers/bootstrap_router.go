@@ -3,13 +3,13 @@ package routers
 import (
 	"context"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/google/go-github/v41/github"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hejmsdz/goslides/common"
 	"github.com/hejmsdz/goslides/di"
 	"github.com/hejmsdz/goslides/dtos"
 )
@@ -26,15 +26,11 @@ type BootstrapHandler struct {
 }
 
 func NewBootstrapHandler(dic *di.Container) *BootstrapHandler {
-	var editUrl *string
-
-	if editUrlStr, ok := os.LookupEnv("SONG_EDIT_URL"); ok {
-		editUrl = &editUrlStr
-	}
+	editUrl := common.GetPublicURL("/dashboard/song/{id}")
 
 	return &BootstrapHandler{
 		Bootstrap: dtos.BootstrapResponse{
-			SongEditURL: editUrl,
+			SongEditURL: &editUrl,
 		},
 	}
 }

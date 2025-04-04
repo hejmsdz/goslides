@@ -4,10 +4,10 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 
-	"github.com/gin-gonic/gin"
 	"github.com/rainycape/unidecode"
 )
 
@@ -37,11 +37,10 @@ func GetSecureRandomString(length int) (string, error) {
 	return base64.RawURLEncoding.EncodeToString(buffer), nil
 }
 
-func GetURL(c *gin.Context, path string) string {
-	scheme := "https"
-	return fmt.Sprintf("%s://%s/%s", scheme, c.Request.Host, path)
+func GetFrontendURL(path string) string {
+	return fmt.Sprintf("%s/%s", os.Getenv("FRONTEND_URL"), path)
 }
 
-func GetPublicURL(c *gin.Context, fileName string) string {
-	return GetURL(c, fmt.Sprintf("public/%s", fileName))
+func GetPublicURL(fileName string) string {
+	return fmt.Sprintf("%s/%s", os.Getenv("PUBLIC_URL"), fileName)
 }
