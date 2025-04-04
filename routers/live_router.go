@@ -52,7 +52,7 @@ func (h *LiveHandler) PostLive(c *gin.Context) {
 		return
 	}
 
-	resp := dtos.NewLiveSessionResponse(c, key, session.Token)
+	resp := dtos.NewLiveSessionResponse(key, session.Token)
 	c.JSON(http.StatusOK, resp)
 }
 
@@ -81,7 +81,7 @@ func (h *LiveHandler) PutLive(c *gin.Context) {
 		h.Live.UpdateSession(key, input)
 		h.Live.ExtendSessionTime(key)
 
-		resp := dtos.NewLiveSessionResponse(c, key, prevSession.Token)
+		resp := dtos.NewLiveSessionResponse(key, prevSession.Token)
 		c.JSON(http.StatusOK, resp)
 	} else {
 		if !h.Live.ValidateLiveSessionKey(key) {
@@ -95,7 +95,7 @@ func (h *LiveHandler) PutLive(c *gin.Context) {
 			return
 		}
 
-		resp := dtos.NewLiveSessionResponse(c, key, session.Token)
+		resp := dtos.NewLiveSessionResponse(key, session.Token)
 		c.JSON(http.StatusOK, resp)
 	}
 }

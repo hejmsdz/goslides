@@ -22,12 +22,6 @@ func Slugify(text string) string {
 	return text
 }
 
-func GetRandomString(length int) string {
-	buffer := make([]byte, length)
-	rand.Read(buffer)
-	return fmt.Sprintf("%x", buffer)
-}
-
 func GetSecureRandomString(length int) (string, error) {
 	buffer := make([]byte, length)
 	_, err := rand.Read(buffer)
