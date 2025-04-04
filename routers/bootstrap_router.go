@@ -26,7 +26,7 @@ type BootstrapHandler struct {
 }
 
 func NewBootstrapHandler(dic *di.Container) *BootstrapHandler {
-	editUrl := common.GetPublicURL("/dashboard/song/{id}")
+	editUrl := common.GetFrontendURL("/dashboard/song/{id}")
 
 	return &BootstrapHandler{
 		Bootstrap: dtos.BootstrapResponse{
