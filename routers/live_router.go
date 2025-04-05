@@ -8,9 +8,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hejmsdz/goslides/common"
 	"github.com/hejmsdz/goslides/di"
 	"github.com/hejmsdz/goslides/dtos"
 	"github.com/hejmsdz/goslides/services"
+	"github.com/pkg/errors"
 )
 
 func RegisterLiveRoutes(r gin.IRouter, dic *di.Container) {
@@ -36,19 +38,19 @@ func NewLiveHandler(dic *di.Container) *LiveHandler {
 func (h *LiveHandler) PostLive(c *gin.Context) {
 	var input dtos.LiveSessionRequest
 	if err := c.ShouldBind(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		common.ReturnBadRequestError(c, err)
 		return
 	}
 
 	if err := input.Validate(); err != nil {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		common.ReturnAPIError(c, http.StatusUnprocessableEntity, "validation failed", err)
 		return
 	}
 
 	key := h.Live.GenerateLiveSessionKey()
 	session, err := h.Live.CreateSession(key, input)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		common.ReturnError(c, err)
 		return
 	}
 
@@ -62,19 +64,19 @@ func (h *LiveHandler) PutLive(c *gin.Context) {
 
 	var input dtos.LiveSessionRequest
 	if err := c.ShouldBind(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		common.ReturnBadRequestError(c, err)
 		return
 	}
 
 	if err := input.Validate(); err != nil {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		common.ReturnAPIError(c, http.StatusUnprocessableEntity, "validation failed", err)
 		return
 	}
 
 	prevSession, exists := h.Live.GetSession(key)
 	if exists {
 		if !h.Live.ValidateToken(key, token) {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			common.ReturnAPIError(c, http.StatusForbidden, "invalid token", nil)
 			return
 		}
 
@@ -85,13 +87,12 @@ func (h *LiveHandler) PutLive(c *gin.Context) {
 		c.JSON(http.StatusOK, resp)
 	} else {
 		if !h.Live.ValidateLiveSessionKey(key) {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid live session key"})
+			common.ReturnAPIError(c, http.StatusUnprocessableEntity, "invalid live session key", nil)
 			return
-
 		}
 		session, err := h.Live.CreateSession(key, input)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			common.ReturnError(c, err)
 			return
 		}
 
@@ -104,9 +105,8 @@ func (h *LiveHandler) GetLive(c *gin.Context) {
 	key := c.Param("key")
 
 	ls, ok := h.Live.GetSession(key)
-
 	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Live session not found"})
+		common.ReturnAPIError(c, http.StatusNotFound, "live session not found", nil)
 		return
 	}
 
@@ -152,17 +152,17 @@ func (h *LiveHandler) DeleteLive(c *gin.Context) {
 
 	_, ok := h.Live.GetSession(key)
 	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Live session not found"})
+		common.ReturnAPIError(c, http.StatusNotFound, "live session not found", nil)
 		return
 	}
 
 	if !h.Live.ValidateToken(key, token) {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		common.ReturnAPIError(c, http.StatusForbidden, "invalid token", nil)
 		return
 	}
 
 	h.Live.DeleteSession(key)
-	c.Writer.WriteHeader(http.StatusNoContent)
+	c.Status(http.StatusNoContent)
 }
 
 func (h *LiveHandler) PostLivePage(c *gin.Context) {
@@ -171,23 +171,23 @@ func (h *LiveHandler) PostLivePage(c *gin.Context) {
 	_, ok := h.Live.GetSession(key)
 
 	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Live session not found"})
+		common.ReturnAPIError(c, http.StatusNotFound, "live session not found", nil)
 		return
 	}
 
 	if !h.Live.ValidateToken(key, token) {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		common.ReturnAPIError(c, http.StatusUnauthorized, "invalid token", nil)
 		return
 	}
 
 	page, err := strconv.Atoi(c.Query("page"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Page number not valid"})
+		common.ReturnAPIError(c, http.StatusBadRequest, "page number not valid", errors.Wrap(err, "failed to parse page number"))
 		return
 	}
 
 	h.Live.ChangeSessionPage(key, page)
 	h.Live.ExtendSessionTime(key)
 
-	c.Writer.WriteHeader(http.StatusNoContent)
+	c.Status(http.StatusNoContent)
 }

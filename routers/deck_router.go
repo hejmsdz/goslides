@@ -36,18 +36,18 @@ func NewDeckHandler(dic *di.Container) *DeckHandler {
 func (h *DeckHandler) PostDeck(c *gin.Context) {
 	var deck dtos.DeckRequest
 	if err := c.ShouldBind(&deck); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		common.ReturnBadRequestError(c, err)
 		return
 	}
 
 	if err := deck.Validate(); err != nil {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		common.ReturnAPIError(c, http.StatusUnprocessableEntity, "validation failed", err)
 		return
 	}
 
 	textDeck, ok := services.BuildTextSlides(deck, h.Songs, h.Liturgy)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get lyrics"})
+		common.ReturnAPIError(c, http.StatusInternalServerError, "failed to get lyrics", nil)
 		return
 	}
 
@@ -66,7 +66,7 @@ func (h *DeckHandler) PostDeck(c *gin.Context) {
 		extension = ".pdf"
 		file, contents, err = core.BuildPDF(textDeck, services.GetPageConfig(deck))
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			common.ReturnError(c, err)
 			return
 		}
 	}

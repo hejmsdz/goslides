@@ -1,9 +1,11 @@
 package routers
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hejmsdz/goslides/common"
 	"github.com/hejmsdz/goslides/di"
 	"github.com/hejmsdz/goslides/services"
 )
@@ -29,7 +31,7 @@ func (h *LiturgyHandler) GetLiturgy(c *gin.Context) {
 
 	liturgy, ok := h.Liturgy.GetDay(date)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Liturgy error"})
+		common.ReturnError(c, errors.New("liturgy error"))
 		return
 	}
 

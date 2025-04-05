@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hejmsdz/goslides/common"
 	"github.com/hejmsdz/goslides/di"
 	"github.com/hejmsdz/goslides/dtos"
 	"github.com/hejmsdz/goslides/models"
@@ -46,18 +47,18 @@ func (h *SongsHandler) PostSong(c *gin.Context) {
 	user := h.Auth.GetCurrentUser(c)
 
 	if err := c.ShouldBind(&input); err != nil {
-		c.Error(err)
+		common.ReturnBadRequestError(c, err)
 		return
 	}
 
 	if err := input.Validate(); err != nil {
-		c.Error(err)
+		common.ReturnAPIError(c, http.StatusUnprocessableEntity, "validation failed", err)
 		return
 	}
 
 	song, err := h.Songs.CreateSong(input, user)
 	if err != nil {
-		c.Error(err)
+		common.ReturnError(c, err)
 		return
 	}
 
@@ -71,7 +72,7 @@ func (h *SongsHandler) GetSong(c *gin.Context) {
 	song, err := h.Songs.GetSong(id, user)
 
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		common.ReturnAPIError(c, http.StatusNotFound, "song not found", err)
 		return
 	}
 
@@ -85,18 +86,18 @@ func (h *SongsHandler) PatchSong(c *gin.Context) {
 
 	var input dtos.SongRequest
 	if err := c.ShouldBind(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		common.ReturnBadRequestError(c, err)
 		return
 	}
 
 	if err := input.Validate(); err != nil {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		common.ReturnAPIError(c, http.StatusUnprocessableEntity, "validation failed", err)
 		return
 	}
 
 	song, err := h.Songs.UpdateSong(id, input, user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		common.ReturnAPIError(c, http.StatusInternalServerError, "failed to update song", err)
 		return
 	}
 
@@ -110,7 +111,7 @@ func (h *SongsHandler) DeleteSong(c *gin.Context) {
 	err := h.Songs.DeleteSong(id, user)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		common.ReturnAPIError(c, http.StatusInternalServerError, "failed to delete song", err)
 		return
 	}
 
@@ -124,7 +125,7 @@ func (h *SongsHandler) GetLyrics(c *gin.Context) {
 	song, err := h.Songs.GetSong(id, user)
 
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		common.ReturnAPIError(c, http.StatusNotFound, "song not found", err)
 		return
 	}
 
