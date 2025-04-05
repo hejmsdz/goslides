@@ -6,6 +6,7 @@ var AllModels = []interface{}{
 	&Song{},
 	&User{},
 	&RefreshToken{},
+	&Team{},
 }
 
 func AutoMigrate(db *gorm.DB) error {

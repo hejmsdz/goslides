@@ -1,7 +1,6 @@
 package routers
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -14,26 +13,29 @@ import (
 func RegisterSongRoutes(r gin.IRouter, dic *di.Container) {
 	h := NewSongsHandler(dic)
 	auth := dic.Auth.AuthMiddleware
+	optionalAuth := dic.Auth.OptionalAuthMiddleware
 
-	r.GET("/songs", h.GetSongs)
+	r.GET("/songs", optionalAuth, h.GetSongs)
 	r.POST("/songs", auth, h.PostSong)
-	r.GET("/songs/:id", h.GetSong)
+	r.GET("/songs/:id", optionalAuth, h.GetSong)
 	r.PATCH("/songs/:id", auth, h.PatchSong)
 	r.DELETE("/songs/:id", auth, h.DeleteSong)
-	r.GET("/lyrics/:id", h.GetLyrics)
+	r.GET("/lyrics/:id", optionalAuth, h.GetLyrics)
 }
 
 type SongsHandler struct {
 	Songs *services.SongsService
+	Auth  *services.AuthService
 }
 
 func NewSongsHandler(dic *di.Container) *SongsHandler {
-	return &SongsHandler{dic.Songs}
+	return &SongsHandler{dic.Songs, dic.Auth}
 }
 
 func (h *SongsHandler) GetSongs(c *gin.Context) {
 	query := c.Query("query")
-	songs := h.Songs.FilterSongs(query)
+	user := h.Auth.GetCurrentUser(c)
+	songs := h.Songs.FilterSongs(query, user)
 
 	resp := dtos.NewSongListResponse(songs)
 	c.JSON(http.StatusOK, resp)
@@ -41,30 +43,32 @@ func (h *SongsHandler) GetSongs(c *gin.Context) {
 
 func (h *SongsHandler) PostSong(c *gin.Context) {
 	var input dtos.SongRequest
+	user := h.Auth.GetCurrentUser(c)
 
 	if err := c.ShouldBind(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
 	if err := input.Validate(); err != nil {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
-	song, err := h.Songs.CreateSong(input)
+	song, err := h.Songs.CreateSong(input, user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
-	resp := dtos.NewSongDetailResponse(*song)
+	resp := dtos.NewSongDetailResponse(song)
 	c.JSON(http.StatusCreated, resp)
 }
 
 func (h *SongsHandler) GetSong(c *gin.Context) {
 	id := c.Param("id")
-	song, err := h.Songs.GetSong(id)
+	user := h.Auth.GetCurrentUser(c)
+	song, err := h.Songs.GetSong(id, user)
 
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -77,6 +81,8 @@ func (h *SongsHandler) GetSong(c *gin.Context) {
 
 func (h *SongsHandler) PatchSong(c *gin.Context) {
 	id := c.Param("id")
+	user := h.Auth.GetCurrentUser(c)
+
 	var input dtos.SongRequest
 	if err := c.ShouldBind(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -88,23 +94,22 @@ func (h *SongsHandler) PatchSong(c *gin.Context) {
 		return
 	}
 
-	song, err := h.Songs.UpdateSong(id, input)
+	song, err := h.Songs.UpdateSong(id, input, user)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	resp := dtos.NewSongDetailResponse(*song)
+	resp := dtos.NewSongDetailResponse(song)
 	c.JSON(http.StatusOK, resp)
 }
 
 func (h *SongsHandler) DeleteSong(c *gin.Context) {
 	id := c.Param("id")
-
-	err := h.Songs.DeleteSong(id)
+	user := h.Auth.GetCurrentUser(c)
+	err := h.Songs.DeleteSong(id, user)
 
 	if err != nil {
-		fmt.Println(err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -115,7 +120,8 @@ func (h *SongsHandler) DeleteSong(c *gin.Context) {
 func (h *SongsHandler) GetLyrics(c *gin.Context) {
 	id := c.Param("id")
 	raw := c.Query("raw") == "1"
-	song, err := h.Songs.GetSong(id)
+	user := h.Auth.GetCurrentUser(c)
+	song, err := h.Songs.GetSong(id, user)
 
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})

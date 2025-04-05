@@ -2,7 +2,7 @@ package services
 
 import (
 	"database/sql"
-	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
@@ -13,35 +13,51 @@ import (
 )
 
 type SongsService struct {
-	db *gorm.DB
+	db    *gorm.DB
+	auth  *AuthService
+	teams *TeamsService
 }
 
-func NewSongsService(db *gorm.DB) *SongsService {
-	return &SongsService{db}
+func NewSongsService(db *gorm.DB, auth *AuthService, teams *TeamsService) *SongsService {
+	return &SongsService{db, auth, teams}
 }
 
-func (s SongsService) GetSong(uuidString string) (models.Song, error) {
+func FilterByUserTeams(user *models.User) func(db *gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		if user == nil {
+			return db.Where("team_id IS NULL")
+		} else {
+			return db.Joins("LEFT JOIN user_teams ON user_teams.team_id = songs.team_id").
+				Where("songs.team_id IS NULL OR user_teams.user_id = ?", user.ID)
+		}
+	}
+}
+
+func (s SongsService) GetSong(uuidString string, user *models.User) (*models.Song, error) {
 	var song models.Song
 
 	uuid, err := uuid.Parse(uuidString)
 	if err != nil {
-		return song, errors.New("invalid id")
+		return nil, common.NewAPIError(400, "invalid id", err)
 	}
 
-	result := s.db.Where("uuid", uuid).Take(&song)
-
-	if result.Error != nil {
-		return song, errors.New("song not found")
+	err = s.db.Where("uuid", uuid).Take(&song).Error
+	if err != nil {
+		return nil, common.NewAPIError(404, "song not found", err)
 	}
 
-	return song, nil
+	if !s.auth.Can(user, "read", &song) {
+		return nil, common.NewAPIError(403, "forbidden", nil)
+	}
+
+	return &song, nil
 }
 
-func (s SongsService) FilterSongs(query string) []models.Song {
+func (s SongsService) FilterSongs(query string, user *models.User) []models.Song {
 	querySlug := common.Slugify(query)
 
 	var songs []models.Song
-	s.db.Select("uuid", "title", "subtitle", "slug").
+	s.db.Scopes(FilterByUserTeams(user)).Select("uuid", "title", "subtitle", "slug").
 		Where("slug LIKE ?", "%"+querySlug+"%").
 		Order("title ASC, subtitle ASC").
 		Find(&songs)
@@ -49,52 +65,69 @@ func (s SongsService) FilterSongs(query string) []models.Song {
 	return songs
 }
 
-func (s SongsService) CreateSong(input dtos.SongRequest) (*models.Song, error) {
-	song := models.Song{
+func (s SongsService) CreateSong(input dtos.SongRequest, user *models.User) (*models.Song, error) {
+	team, err := s.teams.GetTeam(input.Team)
+	if err != nil {
+		return nil, common.NewAPIError(403, "team not found", err)
+	}
+
+	song := &models.Song{
 		Title:    input.Title,
 		Subtitle: sql.NullString{String: input.Subtitle, Valid: input.Subtitle != ""},
 		Lyrics:   strings.Join(input.Lyrics, "\n\n"),
+		Team:     team,
 	}
 
-	res := s.db.Create(&song)
-	if res.Error != nil {
-		return nil, errors.New("failed to create a song")
+	if !s.auth.Can(user, "create", song) {
+		return nil, common.NewAPIError(403, "forbidden", nil)
 	}
 
-	return &song, nil
+	err = s.db.Create(song).Error
+	if err != nil {
+		return nil, common.NewAPIError(500, "failed to create a song", err)
+	}
+
+	return song, nil
 }
 
-func (s SongsService) UpdateSong(id string, input dtos.SongRequest) (*models.Song, error) {
-	var song models.Song
+func (s SongsService) UpdateSong(id string, input dtos.SongRequest, user *models.User) (*models.Song, error) {
+	song, err := s.GetSong(id, user)
+	if err != nil {
+		fmt.Printf("did not get song %+v\n", err)
+		return nil, err
+	}
 
-	res := s.db.Where("uuid = ?", id).Take(&song)
-	if res.Error != nil {
-		return nil, errors.New("not found")
+	if !s.auth.Can(user, "update", song) {
+		fmt.Printf("no permission to update song %+v\n", err)
+		return nil, common.NewAPIError(403, "forbidden", nil)
 	}
 
 	song.Title = input.Title
 	song.Subtitle = sql.NullString{String: input.Subtitle, Valid: input.Subtitle != ""}
 	song.Lyrics = strings.Join(input.Lyrics, "\n\n")
 
-	res = s.db.Save(&song)
-	if res.Error != nil {
-		return nil, errors.New("failed to save")
+	err = s.db.Save(&song).Error
+	if err != nil {
+		fmt.Printf("failed to save song %+v\n", err)
+		return nil, common.NewAPIError(500, "failed to save", err)
 	}
 
-	return &song, nil
+	return song, nil
 }
 
-func (s SongsService) DeleteSong(id string) error {
-	var song models.Song
-
-	res := s.db.Where("uuid = ?", id).Take(&song)
-	if res.Error != nil {
-		return errors.New("song not found")
+func (s SongsService) DeleteSong(id string, user *models.User) error {
+	song, err := s.GetSong(id, user)
+	if err != nil {
+		return err
 	}
 
-	res = s.db.Delete(&song)
-	if res.Error != nil {
-		return errors.New("failed to delete")
+	if !s.auth.Can(user, "delete", song) {
+		return common.NewAPIError(403, "forbidden", nil)
+	}
+
+	err = s.db.Delete(song).Error
+	if err != nil {
+		return common.NewAPIError(500, "failed to delete", err)
 	}
 
 	return nil

@@ -19,6 +19,8 @@ type Song struct {
 	Subtitle sql.NullString
 	Slug     string
 	Lyrics   string
+	TeamID   *uint
+	Team     *Team
 }
 
 var verseName = regexp.MustCompile(`^\[(\w+)\]\s+`)

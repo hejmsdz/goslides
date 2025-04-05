@@ -1,6 +1,7 @@
 package routers
 
 import (
+	"errors"
 	"log"
 	"net/http"
 
@@ -32,9 +33,9 @@ func NewAuthHandler(dic *di.Container) *AuthHandler {
 }
 
 func (h *AuthHandler) GetAuthMe(c *gin.Context) {
-	user, err := h.Users.GetUser(c.MustGet("userUUID").(string))
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+	user := h.Auth.GetCurrentUser(c)
+	if user == nil {
+		c.AbortWithError(http.StatusUnauthorized, errors.New("unauthorized"))
 		return
 	}
 	c.JSON(http.StatusOK, dtos.NewAuthMeResponse(user))

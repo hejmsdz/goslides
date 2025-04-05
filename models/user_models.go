@@ -10,11 +10,13 @@ type User struct {
 	UUID        uuid.UUID `gorm:"uniqueIndex"`
 	Email       string    `gorm:"uniqueIndex"`
 	DisplayName string
+	IsAdmin     bool
+	Teams       []*Team `gorm:"many2many:user_teams;"`
 }
 
-func (s *User) BeforeSave(tx *gorm.DB) (err error) {
-	if s.UUID == uuid.Nil {
-		s.UUID = uuid.New()
+func (u *User) BeforeSave(tx *gorm.DB) (err error) {
+	if u.UUID == uuid.Nil {
+		u.UUID = uuid.New()
 	}
 
 	return nil

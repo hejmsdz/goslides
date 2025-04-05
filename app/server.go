@@ -1,9 +1,11 @@
-package main
+package app
 
 import (
-	"net/http"
+	"errors"
+	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hejmsdz/goslides/common"
 	"github.com/hejmsdz/goslides/di"
 	"github.com/hejmsdz/goslides/routers"
 )
@@ -21,14 +23,29 @@ func corsMiddleware(c *gin.Context) {
 	c.Next()
 }
 
-type Server struct {
-	Router     *gin.Engine
-	HttpServer *http.Server
+func errorHandlerMiddleware(c *gin.Context) {
+	c.Next()
+
+	if len(c.Errors) == 0 {
+		return
+	}
+
+	var apiError *common.APIError
+	for _, err := range c.Errors {
+		if errors.As(err, &apiError) {
+			log.Printf("%s: %v", apiError.Message, apiError.InnerError)
+			c.AbortWithStatusJSON(apiError.StatusCode, gin.H{
+				"error": apiError.Message,
+			})
+			return
+		}
+	}
 }
 
-func NewServer(container *di.Container) *Server {
+func NewApp(container *di.Container) *gin.Engine {
 	r := gin.Default()
 	r.Use(corsMiddleware)
+	r.Use(errorHandlerMiddleware)
 
 	r.Static("/public", "./public")
 	v2 := r.Group("/v2")
@@ -39,15 +56,5 @@ func NewServer(container *di.Container) *Server {
 	routers.RegisterLiturgyRoutes(v2, container)
 	routers.RegisterLiveRoutes(v2, container)
 
-	return &Server{
-		Router: r,
-	}
-}
-
-func (srv *Server) Run(addr string) error {
-	srv.HttpServer = &http.Server{
-		Addr:    addr,
-		Handler: srv.Router.Handler(),
-	}
-	return srv.HttpServer.ListenAndServe()
+	return r
 }

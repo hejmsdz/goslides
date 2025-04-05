@@ -56,7 +56,7 @@ func BuildTextSlides(d dtos.DeckRequest, songsService *SongsService, liturgyServ
 	slides := make([][]string, 0)
 	for _, item := range d.Items {
 		if item.ID != "" {
-			song, err := songsService.GetSong(item.ID)
+			song, err := songsService.GetSong(item.ID, nil)
 			if err != nil {
 				return slides, false
 			}

@@ -9,7 +9,7 @@ type SongSummaryResponse struct {
 	Slug     string  `json:"slug"`
 }
 
-func NewSongSummaryResponse(song models.Song) SongSummaryResponse {
+func NewSongSummaryResponse(song *models.Song) SongSummaryResponse {
 	subtitle := &song.Subtitle.String
 	if !song.Subtitle.Valid {
 		subtitle = nil
@@ -27,7 +27,7 @@ func NewSongListResponse(songs []models.Song) []SongSummaryResponse {
 	resp := make([]SongSummaryResponse, len(songs))
 
 	for i, song := range songs {
-		resp[i] = NewSongSummaryResponse(song)
+		resp[i] = NewSongSummaryResponse(&song)
 	}
 
 	return resp
@@ -38,7 +38,7 @@ type SongDetailResponse struct {
 	Lyrics []string `json:"lyrics"`
 }
 
-func NewSongDetailResponse(song models.Song) SongDetailResponse {
+func NewSongDetailResponse(song *models.Song) SongDetailResponse {
 	return SongDetailResponse{
 		SongSummaryResponse: NewSongSummaryResponse(song),
 		Lyrics:              song.FormatLyrics(models.FormatLyricsOptions{Raw: true}),
@@ -49,6 +49,7 @@ type SongRequest struct {
 	Title    string   `json:"title"`
 	Subtitle string   `json:"subtitle"`
 	Lyrics   []string `json:"lyrics"`
+	Team     string   `json:"team"`
 }
 
 func (r SongRequest) Validate() error {
