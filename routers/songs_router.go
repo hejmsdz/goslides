@@ -62,7 +62,10 @@ func (h *SongsHandler) PostSong(c *gin.Context) {
 		return
 	}
 
-	resp := dtos.NewSongDetailResponse(song)
+	canEdit := h.Auth.Can(user, "update", song)
+	canDelete := h.Auth.Can(user, "delete", song)
+
+	resp := dtos.NewSongDetailResponse(song, canEdit, canDelete)
 	c.JSON(http.StatusCreated, resp)
 }
 
@@ -76,7 +79,10 @@ func (h *SongsHandler) GetSong(c *gin.Context) {
 		return
 	}
 
-	resp := dtos.NewSongDetailResponse(song)
+	canEdit := h.Auth.Can(user, "update", song)
+	canDelete := h.Auth.Can(user, "delete", song)
+
+	resp := dtos.NewSongDetailResponse(song, canEdit, canDelete)
 	c.JSON(http.StatusOK, resp)
 }
 
@@ -101,7 +107,10 @@ func (h *SongsHandler) PatchSong(c *gin.Context) {
 		return
 	}
 
-	resp := dtos.NewSongDetailResponse(song)
+	canEdit := h.Auth.Can(user, "update", song)
+	canDelete := h.Auth.Can(user, "delete", song)
+
+	resp := dtos.NewSongDetailResponse(song, canEdit, canDelete)
 	c.JSON(http.StatusOK, resp)
 }
 

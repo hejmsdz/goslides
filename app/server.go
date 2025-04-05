@@ -27,6 +27,7 @@ func NewApp(container *di.Container) *gin.Engine {
 	v2 := r.Group("/v2")
 	routers.RegisterBootstrapRoutes(v2, container)
 	routers.RegisterAuthRoutes(v2, container)
+	routers.RegisterTeamRoutes(v2, container)
 	routers.RegisterSongRoutes(v2, container)
 	routers.RegisterDeckRoutes(v2, container)
 	routers.RegisterLiturgyRoutes(v2, container)

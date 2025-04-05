@@ -7,6 +7,7 @@ type SongSummaryResponse struct {
 	Title    string  `json:"title"`
 	Subtitle *string `json:"subtitle"`
 	Slug     string  `json:"slug"`
+	TeamID   *string `json:"teamId"`
 }
 
 func NewSongSummaryResponse(song *models.Song) SongSummaryResponse {
@@ -15,12 +16,19 @@ func NewSongSummaryResponse(song *models.Song) SongSummaryResponse {
 		subtitle = nil
 	}
 
-	return SongSummaryResponse{
+	resp := SongSummaryResponse{
 		ID:       song.UUID.String(),
 		Title:    song.Title,
 		Subtitle: subtitle,
 		Slug:     song.Slug,
 	}
+
+	if song.Team != nil {
+		teamID := song.Team.UUID.String()
+		resp.TeamID = &teamID
+	}
+
+	return resp
 }
 
 func NewSongListResponse(songs []models.Song) []SongSummaryResponse {
@@ -35,13 +43,17 @@ func NewSongListResponse(songs []models.Song) []SongSummaryResponse {
 
 type SongDetailResponse struct {
 	SongSummaryResponse
-	Lyrics []string `json:"lyrics"`
+	Lyrics    []string `json:"lyrics"`
+	CanEdit   bool     `json:"canEdit"`
+	CanDelete bool     `json:"canDelete"`
 }
 
-func NewSongDetailResponse(song *models.Song) SongDetailResponse {
+func NewSongDetailResponse(song *models.Song, canEdit bool, canDelete bool) SongDetailResponse {
 	return SongDetailResponse{
 		SongSummaryResponse: NewSongSummaryResponse(song),
 		Lyrics:              song.FormatLyrics(models.FormatLyricsOptions{Raw: true}),
+		CanEdit:             canEdit,
+		CanDelete:           canDelete,
 	}
 }
 

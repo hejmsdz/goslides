@@ -13,16 +13,28 @@ func NewTeamsService(db *gorm.DB) *TeamsService {
 	return &TeamsService{db}
 }
 
-func (s *TeamsService) GetTeam(uuid string) (*models.Team, error) {
+func (t *TeamsService) GetTeam(uuid string) (*models.Team, error) {
 	if uuid == "" {
 		return nil, nil
 	}
 
 	var team models.Team
-	err := s.db.Where("uuid = ?", uuid).First(&team).Error
+	err := t.db.Where("uuid = ?", uuid).First(&team).Error
 	if err != nil {
 		return nil, err
 	}
 
 	return &team, nil
+}
+
+func (t *TeamsService) GetUserTeams(user *models.User) ([]*models.Team, error) {
+	var teams []*models.Team
+	err := t.db.Joins("INNER JOIN user_teams ON user_teams.team_id = teams.id").
+		Where("user_teams.user_id = ?", user.ID).
+		Find(&teams).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return teams, nil
 }

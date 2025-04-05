@@ -41,7 +41,7 @@ func (s SongsService) GetSong(uuidString string, user *models.User) (*models.Son
 		return nil, common.NewAPIError(400, "invalid id", err)
 	}
 
-	err = s.db.Where("uuid", uuid).Take(&song).Error
+	err = s.db.Preload("Team").Where("uuid", uuid).Take(&song).Error
 	if err != nil {
 		return nil, common.NewAPIError(404, "song not found", err)
 	}
@@ -57,7 +57,9 @@ func (s SongsService) FilterSongs(query string, user *models.User) []models.Song
 	querySlug := common.Slugify(query)
 
 	var songs []models.Song
-	s.db.Scopes(FilterByUserTeams(user)).Select("uuid", "title", "subtitle", "slug").
+	s.db.Scopes(FilterByUserTeams(user)).
+		Preload("Team").
+		Omit("lyrics").
 		Where("slug LIKE ?", "%"+querySlug+"%").
 		Order("title ASC, subtitle ASC").
 		Find(&songs)
@@ -75,7 +77,11 @@ func (s SongsService) CreateSong(input dtos.SongRequest, user *models.User) (*mo
 		Title:    input.Title,
 		Subtitle: sql.NullString{String: input.Subtitle, Valid: input.Subtitle != ""},
 		Lyrics:   strings.Join(input.Lyrics, "\n\n"),
-		Team:     team,
+	}
+
+	if team != nil {
+		song.Team = team
+		song.TeamID = &team.ID
 	}
 
 	if !s.auth.Can(user, "create", song) {

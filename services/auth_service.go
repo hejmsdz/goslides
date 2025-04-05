@@ -74,8 +74,9 @@ func (s *AuthService) GetEmailFromGoogleIDToken(ctx context.Context, idToken str
 
 func (s *AuthService) GenerateAccessTokenWithExpiration(user *models.User, expiresAt time.Time) (string, error) {
 	token := jwt.NewWithClaims(s.jwtSigningMethod, jwt.MapClaims{
-		"sub": user.UUID,
-		"exp": expiresAt.Unix(),
+		"sub":   user.UUID,
+		"admin": user.IsAdmin,
+		"exp":   expiresAt.Unix(),
 	})
 
 	return token.SignedString(s.jwtKey)
@@ -216,6 +217,7 @@ func (s *AuthService) AuthMiddleware(c *gin.Context) {
 		c.Next()
 	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+		c.Abort()
 	}
 }
 
