@@ -14,13 +14,15 @@ import (
 
 type Song struct {
 	gorm.Model
-	UUID     uuid.UUID `gorm:"uniqueIndex"`
-	Title    string
-	Subtitle sql.NullString
-	Slug     string
-	Lyrics   string
-	TeamID   *uint
-	Team     *Team
+	UUID             uuid.UUID `gorm:"uniqueIndex"`
+	Title            string
+	Subtitle         sql.NullString
+	Slug             string
+	Lyrics           string
+	TeamID           *uint
+	Team             *Team
+	OverriddenSong   *Song
+	OverriddenSongID *uint
 }
 
 var verseName = regexp.MustCompile(`^\[(\w+)\]\s+`)

@@ -35,8 +35,9 @@ func NewSongsHandler(dic *di.Container) *SongsHandler {
 
 func (h *SongsHandler) GetSongs(c *gin.Context) {
 	query := c.Query("query")
+	teamUUID := c.Query("teamId")
 	user := h.Auth.GetCurrentUser(c)
-	songs := h.Songs.FilterSongs(query, user)
+	songs := h.Songs.FilterSongs(query, user, teamUUID)
 
 	resp := dtos.NewSongListResponse(songs)
 	c.JSON(http.StatusOK, resp)
@@ -64,8 +65,9 @@ func (h *SongsHandler) PostSong(c *gin.Context) {
 
 	canEdit := h.Auth.Can(user, "update", song)
 	canDelete := h.Auth.Can(user, "delete", song)
+	canOverride := h.Auth.Can(user, "override", song)
 
-	resp := dtos.NewSongDetailResponse(song, canEdit, canDelete)
+	resp := dtos.NewSongDetailResponse(song, canEdit, canDelete, canOverride)
 	c.JSON(http.StatusCreated, resp)
 }
 
@@ -81,8 +83,9 @@ func (h *SongsHandler) GetSong(c *gin.Context) {
 
 	canEdit := h.Auth.Can(user, "update", song)
 	canDelete := h.Auth.Can(user, "delete", song)
+	canOverride := h.Auth.Can(user, "override", song)
 
-	resp := dtos.NewSongDetailResponse(song, canEdit, canDelete)
+	resp := dtos.NewSongDetailResponse(song, canEdit, canDelete, canOverride)
 	c.JSON(http.StatusOK, resp)
 }
 
@@ -101,7 +104,15 @@ func (h *SongsHandler) PatchSong(c *gin.Context) {
 		return
 	}
 
-	song, err := h.Songs.UpdateSong(id, input, user)
+	var song *models.Song
+	var err error
+
+	if input.IsOverride {
+		song, err = h.Songs.OverrideSong(id, input, user)
+	} else {
+		song, err = h.Songs.UpdateSong(id, input, user)
+	}
+
 	if err != nil {
 		common.ReturnAPIError(c, http.StatusInternalServerError, "failed to update song", err)
 		return
@@ -109,8 +120,9 @@ func (h *SongsHandler) PatchSong(c *gin.Context) {
 
 	canEdit := h.Auth.Can(user, "update", song)
 	canDelete := h.Auth.Can(user, "delete", song)
+	canOverride := h.Auth.Can(user, "override", song)
 
-	resp := dtos.NewSongDetailResponse(song, canEdit, canDelete)
+	resp := dtos.NewSongDetailResponse(song, canEdit, canDelete, canOverride)
 	c.JSON(http.StatusOK, resp)
 }
 

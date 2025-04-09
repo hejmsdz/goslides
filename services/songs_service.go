@@ -28,7 +28,9 @@ func FilterByUserTeams(user *models.User) func(db *gorm.DB) *gorm.DB {
 			return db.Where("team_id IS NULL")
 		} else {
 			return db.Joins("LEFT JOIN user_teams ON user_teams.team_id = songs.team_id").
-				Where("songs.team_id IS NULL OR user_teams.user_id = ?", user.ID)
+				Joins("LEFT JOIN songs AS overrides ON overrides.overridden_song_id = songs.id AND overrides.deleted_at IS NULL").
+				Joins("LEFT JOIN user_teams AS ut2 ON ut2.team_id = overrides.team_id AND ut2.user_id = ?", user.ID).
+				Where("user_teams.user_id = ? OR (songs.team_id IS NULL AND ut2.team_id IS NULL)", user.ID)
 		}
 	}
 }
@@ -41,7 +43,7 @@ func (s SongsService) GetSong(uuidString string, user *models.User) (*models.Son
 		return nil, common.NewAPIError(400, "invalid id", err)
 	}
 
-	err = s.db.Preload("Team").Where("uuid", uuid).Take(&song).Error
+	err = s.db.Preload("Team").Preload("OverriddenSong").Where("uuid", uuid).Take(&song).Error
 	if err != nil {
 		return nil, common.NewAPIError(404, "song not found", err)
 	}
@@ -53,14 +55,27 @@ func (s SongsService) GetSong(uuidString string, user *models.User) (*models.Son
 	return &song, nil
 }
 
-func (s SongsService) FilterSongs(query string, user *models.User) []models.Song {
+func (s SongsService) FilterSongs(query string, user *models.User, teamUUID string) []models.Song {
 	querySlug := common.Slugify(query)
 
 	var songs []models.Song
-	s.db.Scopes(FilterByUserTeams(user)).
-		Preload("Team").
+
+	db := s.db
+
+	if teamUUID == "" {
+		db = db.Scopes(FilterByUserTeams(user))
+	} else {
+		team, err := s.teams.GetUserTeam(user, teamUUID)
+		if err != nil {
+			return songs
+		}
+
+		db = db.Where("team_id IS NULL OR team_id = ?", team.ID)
+	}
+
+	db.Preload("Team").
 		Omit("lyrics").
-		Where("slug LIKE ?", "%"+querySlug+"%").
+		Where("songs.slug LIKE ?", "%"+querySlug+"%").
 		Order("title ASC, subtitle ASC").
 		Find(&songs)
 
@@ -68,9 +83,9 @@ func (s SongsService) FilterSongs(query string, user *models.User) []models.Song
 }
 
 func (s SongsService) CreateSong(input dtos.SongRequest, user *models.User) (*models.Song, error) {
-	team, err := s.teams.GetTeam(input.Team)
+	team, err := s.teams.GetUserTeamAllowingEmptyForAdmin(user, input.TeamID)
 	if err != nil {
-		return nil, common.NewAPIError(403, "team not found", err)
+		return nil, common.NewAPIError(404, "team not found", err)
 	}
 
 	song := &models.Song{
@@ -119,6 +134,47 @@ func (s SongsService) UpdateSong(id string, input dtos.SongRequest, user *models
 	}
 
 	return song, nil
+}
+
+func (s SongsService) OverrideSong(id string, input dtos.SongRequest, user *models.User) (*models.Song, error) {
+	song, err := s.GetSong(id, user)
+	if err != nil {
+		return nil, err
+	}
+
+	if song.TeamID != nil {
+		return nil, common.NewAPIError(409, "song already overridden", nil)
+	}
+
+	team, err := s.teams.GetUserTeam(user, input.TeamID)
+	if err != nil || team == nil || !s.auth.UserBelongsToTeam(user, team.ID) {
+		return nil, common.NewAPIError(404, "team not found", err)
+	}
+
+	var count int64
+	s.db.Model(&models.Song{}).
+		Where("overriden_song_id = ?", song.ID).
+		Where("team_id = ?", team.ID).
+		Count(&count)
+
+	if count > 0 {
+		return nil, common.NewAPIError(409, "song already overridden", nil)
+	}
+
+	newSong, err := s.CreateSong(input, user)
+	if err != nil {
+		return nil, err
+	}
+
+	newSong.OverriddenSong = song
+	newSong.OverriddenSongID = &song.ID
+
+	err = s.db.Save(newSong).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return newSong, nil
 }
 
 func (s SongsService) DeleteSong(id string, user *models.User) error {

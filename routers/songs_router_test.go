@@ -3,6 +3,7 @@ package routers_test
 import (
 	"fmt"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -12,10 +13,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func getSongs(t *testing.T, router *gin.Engine, token string) (*httptest.ResponseRecorder, *[]dtos.SongSummaryResponse, *dtos.ErrorResponse) {
+func getSongs(t *testing.T, router *gin.Engine, token string, queryParams ...string) (*httptest.ResponseRecorder, *[]dtos.SongSummaryResponse, *dtos.ErrorResponse) {
+	query := ""
+	if len(queryParams) > 0 {
+		query = "?" + strings.Join(queryParams, "&")
+	}
+
 	return tests.Request[[]dtos.SongSummaryResponse](t, router, tests.RequestOptions{
 		Method: "GET",
-		Path:   "/v2/songs",
+		Path:   "/v2/songs" + query,
 		Token:  token,
 	})
 }
@@ -32,6 +38,15 @@ func postSong(t *testing.T, router *gin.Engine, body *gin.H, token string) (*htt
 	return tests.Request[dtos.SongDetailResponse](t, router, tests.RequestOptions{
 		Method: "POST",
 		Path:   "/v2/songs",
+		Body:   body,
+		Token:  token,
+	})
+}
+
+func patchSong(t *testing.T, router *gin.Engine, songUUID string, body *gin.H, token string) (*httptest.ResponseRecorder, *dtos.SongDetailResponse, *dtos.ErrorResponse) {
+	return tests.Request[dtos.SongDetailResponse](t, router, tests.RequestOptions{
+		Method: "PATCH",
+		Path:   fmt.Sprintf("/v2/songs/%s", songUUID),
 		Body:   body,
 		Token:  token,
 	})
@@ -69,21 +84,21 @@ func createTestData(t *testing.T, tce *tests.TestCaseEnvironment) TestData {
 	panBliskoJest, err := tce.Container.Songs.CreateSong(dtos.SongRequest{
 		Title:  "Pan blisko jest",
 		Lyrics: []string{"Pan blisko jest, oczekuj Go.\nPan blisko jest, w Nim serca moc."},
-		Team:   roch.UUID.String(),
+		TeamID: roch.UUID.String(),
 	}, user3)
 	assert.Nil(t, err)
 
 	modlitwaJezusowa, err := tce.Container.Songs.CreateSong(dtos.SongRequest{
 		Title:  "Modlitwa Jezusowa",
 		Lyrics: []string{"Jezu Chryste, Synu Boga żywego!"},
-		Team:   zebrani.UUID.String(),
+		TeamID: zebrani.UUID.String(),
 	}, user3)
 	assert.Nil(t, err)
 
 	pozostanZNami, err := tce.Container.Songs.CreateSong(dtos.SongRequest{
 		Title:  "Pozostań z nami, Panie",
 		Lyrics: []string{"Pozostań z nami, Panie,\nbo dzień już się nachylił.\nPozostań z nami, Panie,\nbo zmrok ziemię okrywa."},
-		Team:   zebrani.UUID.String(),
+		TeamID: zebrani.UUID.String(),
 	}, user3)
 	assert.Nil(t, err)
 
@@ -135,6 +150,44 @@ func TestSongsRouter(t *testing.T) {
 				w, resp, errResp := getSongs(t, tce.App, token)
 
 				assert.Equal(t, 200, w.Code)
+				assert.Nil(t, errResp)
+				assert.Len(t, *resp, tc.expectedLen)
+			})
+		}
+	})
+
+	te.Run("GET /songs allows to filter by team with a query param teamId and verifies user membership in this team", func(t *testing.T, tce *tests.TestCaseEnvironment) {
+		testData := createTestData(t, tce)
+
+		roch := testData.teams["roch"].UUID.String()
+		zebrani := testData.teams["zebrani"].UUID.String()
+
+		testCases := []struct {
+			user        *models.User
+			teamId      string
+			expectedLen int
+		}{
+			{nil, "", 1},
+			{nil, roch, 0},
+			{testData.users["user1"], zebrani, 3},
+			{testData.users["user1"], roch, 0},
+			{testData.users["user2"], roch, 2},
+			{testData.users["user2"], zebrani, 0},
+			{testData.users["user3"], roch, 2},
+			{testData.users["user3"], zebrani, 3},
+		}
+
+		for _, tc := range testCases {
+			userName := "unauthenticated"
+			token := ""
+			if tc.user != nil {
+				userName = tc.user.Email
+				token, _ = tce.Container.Auth.GenerateAccessToken(tc.user)
+			}
+
+			t.Run(fmt.Sprintf("%s filtering by team %s", userName, tc.teamId), func(t *testing.T) {
+				_, resp, errResp := getSongs(t, tce.App, token, "teamId="+tc.teamId)
+
 				assert.Nil(t, errResp)
 				assert.Len(t, *resp, tc.expectedLen)
 			})
@@ -226,7 +279,7 @@ func TestSongsRouter(t *testing.T) {
 				w, _, _ := postSong(t, tce.App, &gin.H{
 					"title":  "Dummy song",
 					"lyrics": []string{"Lorem ipsum dolor sit amet", "Consectetur adipiscit elit"},
-					"team":   tc.team.UUID,
+					"teamId": tc.team.UUID,
 				}, token)
 
 				if tc.user == nil {
@@ -234,9 +287,29 @@ func TestSongsRouter(t *testing.T) {
 				} else if tc.shouldSucceed {
 					assert.Equal(t, 201, w.Code)
 				} else {
-					assert.Equal(t, 403, w.Code)
+					assert.Equal(t, 404, w.Code)
 				}
 			})
 		}
+	})
+
+	te.Run("PATCH /songs/:id allows to override songs", func(t *testing.T, tce *tests.TestCaseEnvironment) {
+		testData := createTestData(t, tce)
+
+		token, err := tce.Container.Auth.GenerateAccessToken(testData.users["user2"])
+		assert.NoError(t, err)
+
+		w, resp, _ := patchSong(t, tce.App, testData.songs["ubiCaritas"].UUID.String(), &gin.H{
+			"title":      "Ubi caritas (customized)",
+			"lyrics":     []string{"Ubi caritas et amor, Deus ibi est.\nCongregavit nos in unum Christi amor."},
+			"teamId":     testData.teams["roch"].UUID,
+			"isOverride": true,
+		}, token)
+
+		assert.Equal(t, 200, w.Code)
+		songs := tce.Container.Songs.FilterSongs("ubi", testData.users["user2"], "")
+		assert.Len(t, songs, 1)
+		assert.Equal(t, "Ubi caritas (customized)", songs[0].Title)
+		assert.Equal(t, "Ubi caritas (customized)", resp.Title)
 	})
 }

@@ -1,13 +1,19 @@
 package dtos
 
-import "github.com/hejmsdz/goslides/models"
+import (
+	"errors"
+	"fmt"
+
+	"github.com/hejmsdz/goslides/models"
+)
 
 type SongSummaryResponse struct {
-	ID       string  `json:"id"`
-	Title    string  `json:"title"`
-	Subtitle *string `json:"subtitle"`
-	Slug     string  `json:"slug"`
-	TeamID   *string `json:"teamId"`
+	ID         string  `json:"id"`
+	Title      string  `json:"title"`
+	Subtitle   *string `json:"subtitle"`
+	Slug       string  `json:"slug"`
+	TeamID     *string `json:"teamId"`
+	IsOverride bool    `json:"isOverride"`
 }
 
 func NewSongSummaryResponse(song *models.Song) SongSummaryResponse {
@@ -17,10 +23,11 @@ func NewSongSummaryResponse(song *models.Song) SongSummaryResponse {
 	}
 
 	resp := SongSummaryResponse{
-		ID:       song.UUID.String(),
-		Title:    song.Title,
-		Subtitle: subtitle,
-		Slug:     song.Slug,
+		ID:         song.UUID.String(),
+		Title:      song.Title,
+		Subtitle:   subtitle,
+		Slug:       song.Slug,
+		IsOverride: song.OverriddenSongID != nil,
 	}
 
 	if song.Team != nil {
@@ -43,27 +50,44 @@ func NewSongListResponse(songs []models.Song) []SongSummaryResponse {
 
 type SongDetailResponse struct {
 	SongSummaryResponse
-	Lyrics    []string `json:"lyrics"`
-	CanEdit   bool     `json:"canEdit"`
-	CanDelete bool     `json:"canDelete"`
+	OverriddenSongID *string  `json:"overriddenSongId"`
+	Lyrics           []string `json:"lyrics"`
+	CanEdit          bool     `json:"canEdit"`
+	CanDelete        bool     `json:"canDelete"`
+	CanOverride      bool     `json:"canOverride"`
 }
 
-func NewSongDetailResponse(song *models.Song, canEdit bool, canDelete bool) SongDetailResponse {
+func NewSongDetailResponse(song *models.Song, canEdit bool, canDelete bool, canOverride bool) SongDetailResponse {
+	var overriddenSongID *string
+	fmt.Printf("overriddenSong: %+v\n", song.OverriddenSong)
+	if song.OverriddenSong != nil {
+		songID := song.OverriddenSong.UUID.String()
+		overriddenSongID = &songID
+	}
+
 	return SongDetailResponse{
 		SongSummaryResponse: NewSongSummaryResponse(song),
+		OverriddenSongID:    overriddenSongID,
 		Lyrics:              song.FormatLyrics(models.FormatLyricsOptions{Raw: true}),
 		CanEdit:             canEdit,
 		CanDelete:           canDelete,
+		CanOverride:         canOverride,
 	}
 }
 
 type SongRequest struct {
-	Title    string   `json:"title"`
-	Subtitle string   `json:"subtitle"`
-	Lyrics   []string `json:"lyrics"`
-	Team     string   `json:"team"`
+	Title      string   `json:"title"`
+	Subtitle   string   `json:"subtitle"`
+	Lyrics     []string `json:"lyrics"`
+	TeamID     string   `json:"teamId"`
+	IsOverride bool     `json:"isOverride"`
 }
 
 func (r SongRequest) Validate() error {
+	if r.IsOverride {
+		if r.TeamID == "" {
+			return errors.New("teamId is required when overriding a song")
+		}
+	}
 	return nil
 }

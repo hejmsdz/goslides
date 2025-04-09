@@ -174,6 +174,8 @@ func (s *AuthService) Can(user *models.User, action string, resource *models.Son
 		return resource.TeamID == nil || s.UserBelongsToTeam(user, *resource.TeamID)
 	case "create", "update", "delete":
 		return resource.TeamID != nil && s.UserBelongsToTeam(user, *resource.TeamID)
+	case "override":
+		return resource.TeamID == nil
 	}
 	return false
 }
