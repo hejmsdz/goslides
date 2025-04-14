@@ -18,18 +18,20 @@ import (
 func RegisterDeckRoutes(r gin.IRouter, dic *di.Container) {
 	h := NewDeckHandler(dic)
 
-	r.POST("/deck", h.PostDeck)
+	r.POST("/deck", h.Auth.OptionalAuthMiddleware, h.PostDeck)
 }
 
 type DeckHandler struct {
 	Songs   *services.SongsService
 	Liturgy *services.LiturgyService
+	Auth    *services.AuthService
 }
 
 func NewDeckHandler(dic *di.Container) *DeckHandler {
 	return &DeckHandler{
 		Songs:   dic.Songs,
 		Liturgy: dic.Liturgy,
+		Auth:    dic.Auth,
 	}
 }
 
@@ -45,7 +47,9 @@ func (h *DeckHandler) PostDeck(c *gin.Context) {
 		return
 	}
 
-	textDeck, ok := services.BuildTextSlides(deck, h.Songs, h.Liturgy)
+	user := h.Auth.GetCurrentUser(c)
+
+	textDeck, ok := services.BuildTextSlides(deck, h.Songs, h.Liturgy, user)
 	if !ok {
 		common.ReturnAPIError(c, http.StatusInternalServerError, "failed to get lyrics", nil)
 		return

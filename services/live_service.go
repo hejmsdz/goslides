@@ -12,6 +12,7 @@ import (
 	"github.com/hejmsdz/goslides/common"
 	"github.com/hejmsdz/goslides/core"
 	"github.com/hejmsdz/goslides/dtos"
+	"github.com/hejmsdz/goslides/models"
 )
 
 type LiveService struct {
@@ -72,8 +73,8 @@ func (l *LiveService) GenerateLiveSessionKey() string {
 	}
 }
 
-func (l *LiveService) GenerateLiveSessionDeck(input dtos.LiveSessionRequest) (string, error) {
-	textDeck, ok := BuildTextSlides(input.Deck, l.Songs, l.Liturgy)
+func (l *LiveService) GenerateLiveSessionDeck(input dtos.LiveSessionRequest, user *models.User) (string, error) {
+	textDeck, ok := BuildTextSlides(input.Deck, l.Songs, l.Liturgy, user)
 	if !ok {
 		return "", errors.New("failed to build text deck")
 	}
@@ -87,8 +88,8 @@ func (l *LiveService) GenerateLiveSessionDeck(input dtos.LiveSessionRequest) (st
 	return fileName, common.SavePublicFile(file, fileName)
 }
 
-func (l *LiveService) CreateSession(key string, input dtos.LiveSessionRequest) (*LiveSession, error) {
-	fileName, err := l.GenerateLiveSessionDeck(input)
+func (l *LiveService) CreateSession(key string, input dtos.LiveSessionRequest, user *models.User) (*LiveSession, error) {
+	fileName, err := l.GenerateLiveSessionDeck(input, user)
 	if err != nil {
 		return nil, err
 	}
@@ -142,13 +143,13 @@ func (l *LiveService) DeleteSession(key string) {
 	delete(l.sessions, key)
 }
 
-func (l *LiveService) UpdateSession(key string, input dtos.LiveSessionRequest) error {
+func (l *LiveService) UpdateSession(key string, input dtos.LiveSessionRequest, user *models.User) error {
 	session, ok := l.GetSession(key)
 	if !ok {
 		return errors.New("session not found")
 	}
 
-	fileName, err := l.GenerateLiveSessionDeck(input)
+	fileName, err := l.GenerateLiveSessionDeck(input, user)
 	if err != nil {
 		return err
 	}

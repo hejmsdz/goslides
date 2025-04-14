@@ -18,8 +18,8 @@ import (
 func RegisterLiveRoutes(r gin.IRouter, dic *di.Container) {
 	h := NewLiveHandler(dic)
 
-	r.POST("/live", h.PostLive)
-	r.PUT("/live/:key", h.PutLive)
+	r.POST("/live", h.Auth.OptionalAuthMiddleware, h.PostLive)
+	r.PUT("/live/:key", h.Auth.OptionalAuthMiddleware, h.PutLive)
 	r.GET("/live/:key", h.GetLive)
 	r.DELETE("/live/:key", h.DeleteLive)
 	r.POST("/live/:key/page", h.PostLivePage)
@@ -27,16 +27,20 @@ func RegisterLiveRoutes(r gin.IRouter, dic *di.Container) {
 
 type LiveHandler struct {
 	Live *services.LiveService
+	Auth *services.AuthService
 }
 
 func NewLiveHandler(dic *di.Container) *LiveHandler {
 	return &LiveHandler{
 		Live: dic.Live,
+		Auth: dic.Auth,
 	}
 }
 
 func (h *LiveHandler) PostLive(c *gin.Context) {
 	var input dtos.LiveSessionRequest
+	user := h.Auth.GetCurrentUser(c)
+
 	if err := c.ShouldBind(&input); err != nil {
 		common.ReturnBadRequestError(c, err)
 		return
@@ -48,7 +52,7 @@ func (h *LiveHandler) PostLive(c *gin.Context) {
 	}
 
 	key := h.Live.GenerateLiveSessionKey()
-	session, err := h.Live.CreateSession(key, input)
+	session, err := h.Live.CreateSession(key, input, user)
 	if err != nil {
 		common.ReturnError(c, err)
 		return
@@ -61,6 +65,7 @@ func (h *LiveHandler) PostLive(c *gin.Context) {
 func (h *LiveHandler) PutLive(c *gin.Context) {
 	key := c.Param("key")
 	token := c.Query("token")
+	user := h.Auth.GetCurrentUser(c)
 
 	var input dtos.LiveSessionRequest
 	if err := c.ShouldBind(&input); err != nil {
@@ -80,7 +85,7 @@ func (h *LiveHandler) PutLive(c *gin.Context) {
 			return
 		}
 
-		h.Live.UpdateSession(key, input)
+		h.Live.UpdateSession(key, input, user)
 		h.Live.ExtendSessionTime(key)
 
 		resp := dtos.NewLiveSessionResponse(key, prevSession.Token)
@@ -90,7 +95,7 @@ func (h *LiveHandler) PutLive(c *gin.Context) {
 			common.ReturnAPIError(c, http.StatusUnprocessableEntity, "invalid live session key", nil)
 			return
 		}
-		session, err := h.Live.CreateSession(key, input)
+		session, err := h.Live.CreateSession(key, input, user)
 		if err != nil {
 			common.ReturnError(c, err)
 			return
