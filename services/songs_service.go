@@ -60,17 +60,14 @@ func (s SongsService) FilterSongs(query string, user *models.User, teamUUID stri
 
 	var songs []models.Song
 
-	db := s.db
-
-	if teamUUID == "" {
-		db = db.Scopes(FilterByUserTeams(user))
-	} else {
+	db := s.db.Scopes(FilterByUserTeams(user))
+	if teamUUID != "" {
 		team, err := s.teams.GetUserTeam(user, teamUUID)
 		if err != nil {
 			return songs
 		}
 
-		db = db.Where("team_id IS NULL OR team_id = ?", team.ID)
+		db = db.Where("songs.team_id IS NULL OR songs.team_id = ?", team.ID)
 	}
 
 	db.Preload("Team").
@@ -114,7 +111,6 @@ func (s SongsService) CreateSong(input dtos.SongRequest, user *models.User) (*mo
 func (s SongsService) UpdateSong(id string, input dtos.SongRequest, user *models.User) (*models.Song, error) {
 	song, err := s.GetSong(id, user)
 	if err != nil {
-		fmt.Printf("did not get song %+v\n", err)
 		return nil, err
 	}
 
@@ -123,9 +119,22 @@ func (s SongsService) UpdateSong(id string, input dtos.SongRequest, user *models
 		return nil, common.NewAPIError(403, "forbidden", nil)
 	}
 
+	newTeam, err := s.teams.GetUserTeamAllowingEmptyForAdmin(user, input.TeamID)
+	if err != nil {
+		return nil, common.NewAPIError(404, "team not found", err)
+	}
+
 	song.Title = input.Title
 	song.Subtitle = sql.NullString{String: input.Subtitle, Valid: input.Subtitle != ""}
 	song.Lyrics = strings.Join(input.Lyrics, "\n\n")
+
+	if newTeam == nil {
+		song.Team = nil
+		song.TeamID = nil
+	} else {
+		song.Team = newTeam
+		song.TeamID = &(newTeam.ID)
+	}
 
 	err = s.db.Save(&song).Error
 	if err != nil {
