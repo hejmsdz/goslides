@@ -73,11 +73,7 @@ func (h *AuthHandler) PostAuthGoogle(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, dtos.AuthResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		Name:         user.DisplayName,
-	})
+	c.JSON(http.StatusOK, dtos.NewAuthResponse(accessToken, refreshToken, user))
 }
 
 func (h *AuthHandler) PostAuthRefresh(c *gin.Context) {
@@ -100,11 +96,7 @@ func (h *AuthHandler) PostAuthRefresh(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, dtos.AuthResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken.Token,
-		Name:         refreshToken.User.DisplayName,
-	})
+	c.JSON(http.StatusOK, dtos.NewAuthResponse(accessToken, refreshToken.Token, &refreshToken.User))
 }
 
 func (h *AuthHandler) DeleteAuthRefresh(c *gin.Context) {
