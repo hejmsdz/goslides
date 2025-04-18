@@ -21,3 +21,7 @@ func NewTeamListResponse(teams []*models.Team) []TeamResponse {
 	}
 	return resp
 }
+
+type TeamRequest struct {
+	Name string `json:"name"`
+}

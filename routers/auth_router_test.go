@@ -73,7 +73,7 @@ func TestAuthRouter(t *testing.T) {
 			w, resp, errResp := postAuthGoogle(t, tce.App, "valid-token:john.doe@gmail.com")
 			assert.Equal(t, 200, w.Code)
 			assert.Nil(t, errResp)
-			assert.Equal(t, "John Doe", resp.Name)
+			assert.Equal(t, "John Doe", resp.User.DisplayName)
 		})
 
 		te.Run("non-existent user", func(t *testing.T, tce *tests.TestCaseEnvironment) {
