@@ -18,36 +18,40 @@ import (
 func RegisterDeckRoutes(r gin.IRouter, dic *di.Container) {
 	h := NewDeckHandler(dic)
 
-	r.POST("/deck", h.PostDeck)
+	r.POST("/deck", h.Auth.OptionalAuthMiddleware, h.PostDeck)
 }
 
 type DeckHandler struct {
 	Songs   *services.SongsService
 	Liturgy *services.LiturgyService
+	Auth    *services.AuthService
 }
 
 func NewDeckHandler(dic *di.Container) *DeckHandler {
 	return &DeckHandler{
 		Songs:   dic.Songs,
 		Liturgy: dic.Liturgy,
+		Auth:    dic.Auth,
 	}
 }
 
 func (h *DeckHandler) PostDeck(c *gin.Context) {
 	var deck dtos.DeckRequest
 	if err := c.ShouldBind(&deck); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		common.ReturnBadRequestError(c, err)
 		return
 	}
 
 	if err := deck.Validate(); err != nil {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		common.ReturnAPIError(c, http.StatusUnprocessableEntity, "validation failed", err)
 		return
 	}
 
-	textDeck, ok := services.BuildTextSlides(deck, h.Songs, h.Liturgy)
+	user := h.Auth.GetCurrentUser(c)
+
+	textDeck, ok := services.BuildTextSlides(deck, h.Songs, h.Liturgy, user)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get lyrics"})
+		common.ReturnAPIError(c, http.StatusInternalServerError, "failed to get lyrics", nil)
 		return
 	}
 
@@ -66,7 +70,7 @@ func (h *DeckHandler) PostDeck(c *gin.Context) {
 		extension = ".pdf"
 		file, contents, err = core.BuildPDF(textDeck, services.GetPageConfig(deck))
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			common.ReturnError(c, err)
 			return
 		}
 	}

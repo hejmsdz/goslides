@@ -39,7 +39,7 @@ func GetPageConfig(d dtos.DeckRequest) core.PageConfig {
 const PSALM = "PSALM"
 const ACCLAMATION = "ACCLAMATION"
 
-func BuildTextSlides(d dtos.DeckRequest, songsService *SongsService, liturgyService *LiturgyService) ([][]string, bool) {
+func BuildTextSlides(d dtos.DeckRequest, songsService *SongsService, liturgyService *LiturgyService, user *models.User) ([][]string, bool) {
 	hasLiturgy := false
 	for _, item := range d.Items {
 		if item.Type == PSALM || item.Type == ACCLAMATION {
@@ -56,7 +56,7 @@ func BuildTextSlides(d dtos.DeckRequest, songsService *SongsService, liturgyServ
 	slides := make([][]string, 0)
 	for _, item := range d.Items {
 		if item.ID != "" {
-			song, err := songsService.GetSong(item.ID)
+			song, err := songsService.GetSong(item.ID, user)
 			if err != nil {
 				return slides, false
 			}

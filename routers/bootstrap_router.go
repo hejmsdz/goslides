@@ -3,6 +3,7 @@ package routers
 import (
 	"context"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -25,12 +26,22 @@ type BootstrapHandler struct {
 	Bootstrap dtos.BootstrapResponse
 }
 
+func getEnvOrNil(key string) *string {
+	value, exists := os.LookupEnv(key)
+	if !exists {
+		return nil
+	}
+	return &value
+}
+
 func NewBootstrapHandler(dic *di.Container) *BootstrapHandler {
 	editUrl := common.GetFrontendURL("/dashboard/song/{id}")
 
 	return &BootstrapHandler{
 		Bootstrap: dtos.BootstrapResponse{
 			SongEditURL: &editUrl,
+			ContactURL:  getEnvOrNil("CONTACT_URL"),
+			SupportURL:  getEnvOrNil("SUPPORT_URL"),
 		},
 	}
 }

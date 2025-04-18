@@ -74,8 +74,9 @@ func (s *AuthService) GetEmailFromGoogleIDToken(ctx context.Context, idToken str
 
 func (s *AuthService) GenerateAccessTokenWithExpiration(user *models.User, expiresAt time.Time) (string, error) {
 	token := jwt.NewWithClaims(s.jwtSigningMethod, jwt.MapClaims{
-		"sub": user.UUID,
-		"exp": expiresAt.Unix(),
+		"sub":   user.UUID,
+		"admin": user.IsAdmin,
+		"exp":   expiresAt.Unix(),
 	})
 
 	return token.SignedString(s.jwtKey)
@@ -153,39 +154,85 @@ func (s *AuthService) DeleteRefreshToken(tokenString string) error {
 	return result.Error
 }
 
-func (s *AuthService) AuthMiddleware(c *gin.Context) {
-	authHeader := c.Request.Header.Get("Authorization")
-	token, isBearer := strings.CutPrefix(authHeader, "Bearer ")
+func (s *AuthService) UserBelongsToTeam(user *models.User, teamID uint) bool {
+	if user == nil {
+		return false
+	}
 
+	var count int64
+	s.db.Table("user_teams").Where("user_id = ? AND team_id = ?", user.ID, teamID).Count(&count)
+	return count > 0
+}
+
+func (s *AuthService) Can(user *models.User, action string, resource *models.Song) bool {
+	if user != nil && user.IsAdmin {
+		return true
+	}
+
+	switch action {
+	case "read":
+		return resource.TeamID == nil || s.UserBelongsToTeam(user, *resource.TeamID)
+	case "create", "update", "delete":
+		return resource.TeamID != nil && s.UserBelongsToTeam(user, *resource.TeamID)
+	case "override":
+		return resource.TeamID == nil
+	}
+	return false
+}
+
+func getBearerToken(c *gin.Context) (string, bool) {
+	authHeader := c.Request.Header.Get("Authorization")
+	return strings.CutPrefix(authHeader, "Bearer ")
+}
+
+func (s *AuthService) handleTokenValidation(c *gin.Context, token string) error {
+	userUUID, err := s.ValidateAccessToken(token)
+
+	if err == nil {
+		c.Set("userUUID", userUUID)
+		return nil
+	}
+
+	message := "invalid token"
+	if strings.Contains(err.Error(), "token is expired") {
+		message = "token expired"
+	}
+	c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+		"error": message,
+	})
+
+	return err
+}
+
+func (s *AuthService) OptionalAuthMiddleware(c *gin.Context) {
+	token, isBearer := getBearerToken(c)
 	if !isBearer {
+		c.Next()
+	} else if s.handleTokenValidation(c, token) != nil {
+		c.Next()
+	}
+}
+
+func (s *AuthService) AuthMiddleware(c *gin.Context) {
+	token, isBearer := getBearerToken(c)
+	if isBearer && s.handleTokenValidation(c, token) == nil {
+		c.Next()
+	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
 		c.Abort()
-		return
+	}
+}
+
+func (s *AuthService) GetCurrentUser(c *gin.Context) *models.User {
+	userUUID := c.GetString("userUUID")
+	if userUUID == "" {
+		return nil
 	}
 
-	userUUID, err := s.ValidateAccessToken(token)
+	user, err := s.users.GetUser(userUUID)
 	if err != nil {
-		message := "invalid token"
-		if strings.Contains(err.Error(), "token is expired") {
-			message = "token expired"
-		}
-
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": message,
-		})
-		c.Abort()
-		return
+		return nil
 	}
 
-	/*
-		user, err := s.users.GetUser(userUuid)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
-			c.Abort()
-			return
-		}
-		c.Set("user", user)
-	*/
-	c.Set("userUUID", userUUID)
-	c.Next()
+	return user
 }

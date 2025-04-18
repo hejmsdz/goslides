@@ -46,13 +46,15 @@ func Request[R any](t *testing.T, testRouter *gin.Engine, opts RequestOptions) (
 	var errorResp dtos.ErrorResponse
 	var resp R
 
-	if w.Code >= 400 {
+	if w.Code >= 500 {
+		assert.FailNowf(t, "server error", "%d: %s", w.Code, w.Body.String())
+	} else if w.Code >= 400 {
 		assert.NoError(t, json.NewDecoder(w.Body).Decode(&errorResp))
 		return w, nil, &errorResp
 	} else if w.Code >= 200 && w.Code < 300 && w.Code != 204 {
 		assert.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		return w, &resp, nil
-	} else {
-		return w, nil, nil
 	}
+
+	return w, nil, nil
 }
