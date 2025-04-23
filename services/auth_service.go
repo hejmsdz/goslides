@@ -193,33 +193,32 @@ func (s *AuthService) handleTokenValidation(c *gin.Context, token string) error 
 		return nil
 	}
 
-	message := "invalid token"
 	if strings.Contains(err.Error(), "token is expired") {
-		message = "token expired"
+		return errors.New("token expired")
 	}
-	c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-		"error": message,
-	})
 
-	return err
+	return errors.New("invalid token")
 }
 
 func (s *AuthService) OptionalAuthMiddleware(c *gin.Context) {
 	token, isBearer := getBearerToken(c)
 	if !isBearer {
 		c.Next()
-	} else if s.handleTokenValidation(c, token) != nil {
+	} else if err := s.handleTokenValidation(c, token); err != nil {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+	} else {
 		c.Next()
 	}
 }
 
 func (s *AuthService) AuthMiddleware(c *gin.Context) {
 	token, isBearer := getBearerToken(c)
-	if isBearer && s.handleTokenValidation(c, token) == nil {
-		c.Next()
+	if !isBearer {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+	} else if err := s.handleTokenValidation(c, token); err != nil {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 	} else {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
-		c.Abort()
+		c.Next()
 	}
 }
 
