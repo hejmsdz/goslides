@@ -125,37 +125,6 @@ func createTestData(t *testing.T, tce *tests.TestCaseEnvironment) TestData {
 func TestSongsRouter(t *testing.T) {
 	te := tests.NewTestEnvironment(t)
 
-	te.Run("GET /songs filters songs according to user's team memberships", func(t *testing.T, tce *tests.TestCaseEnvironment) {
-		testData := createTestData(t, tce)
-
-		testCases := []struct {
-			user        *models.User
-			expectedLen int
-		}{
-			{nil, 1},
-			{testData.users["user1"], 3},
-			{testData.users["user2"], 2},
-			{testData.users["user3"], 4},
-		}
-
-		for _, tc := range testCases {
-			userName := "unauthenticated"
-			token := ""
-			if tc.user != nil {
-				userName = tc.user.Email
-				token, _ = tce.Container.Auth.GenerateAccessToken(tc.user)
-			}
-
-			t.Run(fmt.Sprintf("%s should get %d songs", userName, tc.expectedLen), func(t *testing.T) {
-				w, resp, errResp := getSongs(t, tce.App, token)
-
-				assert.Equal(t, 200, w.Code)
-				assert.Nil(t, errResp)
-				assert.Len(t, *resp, tc.expectedLen)
-			})
-		}
-	})
-
 	te.Run("GET /songs allows to filter by team with a query param teamId and verifies user membership in this team", func(t *testing.T, tce *tests.TestCaseEnvironment) {
 		testData := createTestData(t, tce)
 
@@ -307,7 +276,7 @@ func TestSongsRouter(t *testing.T) {
 		}, token)
 
 		assert.Equal(t, 200, w.Code)
-		songs := tce.Container.Songs.FilterSongs("ubi", testData.users["user2"], "")
+		songs := tce.Container.Songs.FilterSongs("ubi", testData.users["user2"], testData.teams["roch"].UUID.String())
 		assert.Len(t, songs, 1)
 		assert.Equal(t, "Ubi caritas (customized)", songs[0].Title)
 		assert.Equal(t, "Ubi caritas (customized)", resp.Title)

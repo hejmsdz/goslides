@@ -22,19 +22,6 @@ func NewSongsService(db *gorm.DB, auth *AuthService, teams *TeamsService) *Songs
 	return &SongsService{db, auth, teams}
 }
 
-func FilterByUserTeams(user *models.User) func(db *gorm.DB) *gorm.DB {
-	return func(db *gorm.DB) *gorm.DB {
-		if user == nil {
-			return db.Where("team_id IS NULL")
-		} else {
-			return db.Joins("LEFT JOIN user_teams ON user_teams.team_id = songs.team_id").
-				Joins("LEFT JOIN songs AS overrides ON overrides.overridden_song_id = songs.id AND overrides.deleted_at IS NULL").
-				Joins("LEFT JOIN user_teams AS ut2 ON ut2.team_id = overrides.team_id AND ut2.user_id = ?", user.ID).
-				Where("user_teams.user_id = ? OR (songs.team_id IS NULL AND ut2.team_id IS NULL)", user.ID)
-		}
-	}
-}
-
 func (s SongsService) GetSong(uuidString string, user *models.User) (*models.Song, error) {
 	var song models.Song
 
@@ -60,14 +47,17 @@ func (s SongsService) FilterSongs(query string, user *models.User, teamUUID stri
 
 	var songs []models.Song
 
-	db := s.db.Scopes(FilterByUserTeams(user))
-	if teamUUID != "" {
+	db := s.db
+	if teamUUID == "" {
+		db = s.db.Where("team_id IS NULL")
+	} else {
 		team, err := s.teams.GetUserTeam(user, teamUUID)
 		if err != nil {
 			return songs
 		}
 
-		db = db.Where("songs.team_id IS NULL OR songs.team_id = ?", team.ID)
+		db = db.Joins("LEFT JOIN songs AS overrides ON overrides.overridden_song_id = songs.id AND overrides.team_id = ?", team.ID).
+			Where("songs.team_id = ? OR (songs.team_id IS NULL AND overrides.id IS NULL)", team.ID)
 	}
 
 	db.Preload("Team").
