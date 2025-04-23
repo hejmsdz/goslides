@@ -159,3 +159,13 @@ func (t *TeamsService) LeaveTeam(user *models.User, uuid string) error {
 
 	return nil
 }
+
+func (t *TeamsService) GetTeamMembers(team *models.Team) ([]*models.User, error) {
+	var users []*models.User
+	err := t.db.Model(&team).Association("Users").Find(&users)
+	if err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}

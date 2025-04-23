@@ -14,6 +14,7 @@ func RegisterTeamRoutes(r gin.IRouter, dic *di.Container) {
 	auth := dic.Auth.AuthMiddleware
 
 	r.GET("/teams", auth, h.GetTeams)
+	r.GET("/teams/:uuid/members", auth, h.GetTeamMembers)
 	r.POST("/teams", auth, h.PostTeam)
 	r.POST("/teams/:uuid/invite", auth, h.PostTeamInvite)
 	r.POST("/teams/join", auth, h.PostTeamJoin)
@@ -38,6 +39,26 @@ func (h *TeamsHandler) GetTeams(c *gin.Context) {
 	}
 
 	resp := dtos.NewTeamListResponse(teams)
+	c.JSON(http.StatusOK, resp)
+}
+
+func (h *TeamsHandler) GetTeamMembers(c *gin.Context) {
+	user := h.Auth.GetCurrentUser(c)
+	uuid := c.Param("uuid")
+
+	team, err := h.Teams.GetUserTeam(user, uuid)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get team"})
+		return
+	}
+
+	members, err := h.Teams.GetTeamMembers(team)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get team members"})
+		return
+	}
+
+	resp := dtos.NewTeamMembersResponse(members)
 	c.JSON(http.StatusOK, resp)
 }
 

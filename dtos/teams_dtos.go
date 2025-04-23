@@ -25,3 +25,21 @@ func NewTeamListResponse(teams []*models.Team) []TeamResponse {
 type TeamRequest struct {
 	Name string `json:"name"`
 }
+
+type TeamMember struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type TeamMembersResponse = []TeamMember
+
+func NewTeamMembersResponse(members []*models.User) TeamMembersResponse {
+	resp := make(TeamMembersResponse, len(members))
+	for i, member := range members {
+		resp[i] = TeamMember{
+			ID:   member.UUID.String(),
+			Name: member.DisplayName,
+		}
+	}
+	return resp
+}
