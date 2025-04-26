@@ -39,6 +39,16 @@ func (s UsersService) GetUserByEmail(email string) (*models.User, error) {
 	return user, nil
 }
 
+func (s UsersService) CreateUser(email, displayName string) (*models.User, error) {
+	user := &models.User{
+		Email:       email,
+		DisplayName: displayName,
+		IsAdmin:     false,
+	}
+
+	return user, s.db.Create(user).Error
+}
+
 func (s UsersService) UpdateUser(user *models.User, input dtos.UserUpdateRequest) error {
 	user.DisplayName = input.DisplayName
 

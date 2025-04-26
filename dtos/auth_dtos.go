@@ -14,12 +14,14 @@ type AuthResponse struct {
 	AccessToken  string          `json:"token"`
 	RefreshToken string          `json:"refreshToken"`
 	User         *UserMeResponse `json:"user"`
+	IsNewUser    bool            `json:"isNewUser"`
 }
 
-func NewAuthResponse(token string, refreshToken string, user *models.User) *AuthResponse {
+func NewAuthResponse(token string, refreshToken string, user *models.User, isNewUser bool) *AuthResponse {
 	return &AuthResponse{
 		AccessToken:  token,
 		RefreshToken: refreshToken,
 		User:         NewUserMeResponse(user),
+		IsNewUser:    isNewUser,
 	}
 }

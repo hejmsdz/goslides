@@ -39,16 +39,21 @@ func (h *AuthHandler) PostAuthGoogle(c *gin.Context) {
 		return
 	}
 
-	email, err := h.Auth.GetEmailFromGoogleIDToken(c.Request.Context(), data.IDToken)
+	userInfo, err := h.Auth.GetUserInfoFromGoogleIDToken(c.Request.Context(), data.IDToken)
 	if err != nil {
 		common.ReturnAPIError(c, http.StatusUnauthorized, "invalid credentials", errors.Wrap(err, "failed to get email from google id token"))
 		return
 	}
 
-	user, err := h.Users.GetUserByEmail(email)
+	isNewUser := false
+	user, err := h.Users.GetUserByEmail(userInfo.Email)
 	if err != nil {
-		common.ReturnAPIError(c, http.StatusUnauthorized, "invalid credentials", errors.Wrapf(err, "user with email %s not found", email))
-		return
+		user, err = h.Users.CreateUser(userInfo.Email, userInfo.Name)
+		if err != nil {
+			common.ReturnAPIError(c, http.StatusInternalServerError, "failed to create user", errors.Wrap(err, "failed to create user"))
+			return
+		}
+		isNewUser = true
 	}
 
 	accessToken, err := h.Auth.GenerateAccessToken(user)
@@ -63,7 +68,13 @@ func (h *AuthHandler) PostAuthGoogle(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, dtos.NewAuthResponse(accessToken, refreshToken, user))
+	response := dtos.NewAuthResponse(accessToken, refreshToken, user, isNewUser)
+
+	if isNewUser {
+		c.JSON(http.StatusCreated, response)
+	} else {
+		c.JSON(http.StatusOK, response)
+	}
 }
 
 func (h *AuthHandler) PostAuthRefresh(c *gin.Context) {
@@ -86,7 +97,7 @@ func (h *AuthHandler) PostAuthRefresh(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, dtos.NewAuthResponse(accessToken, refreshToken.Token, &refreshToken.User))
+	c.JSON(http.StatusOK, dtos.NewAuthResponse(accessToken, refreshToken.Token, &refreshToken.User, false))
 }
 
 func (h *AuthHandler) DeleteAuthRefresh(c *gin.Context) {

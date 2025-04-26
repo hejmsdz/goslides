@@ -47,9 +47,9 @@ func (tv *MockIDTokenValidator) Validate(ctx context.Context, idToken string) (*
 				"email":          email,
 				"email_verified": true,
 				"at_hash":        "h5BZSFLbvXb8jd3ZSIX8nn",
-				"name":           "John Doe",
+				"name":           "John Test Doe",
 				"picture":        "https://example.com/avatar.jpg",
-				"given_name":     "John",
+				"given_name":     "John Test",
 				"family_name":    "Doe",
 			},
 		}, nil

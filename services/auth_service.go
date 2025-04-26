@@ -58,18 +58,37 @@ func NewAuthService(db *gorm.DB, users *UsersService, idTokenValidator IDTokenVa
 	}
 }
 
-func (s *AuthService) GetEmailFromGoogleIDToken(ctx context.Context, idToken string) (string, error) {
+type UserInfo struct {
+	Email string
+	Name  string
+}
+
+func (s *AuthService) GetUserInfoFromGoogleIDToken(ctx context.Context, idToken string) (UserInfo, error) {
+	var userInfo UserInfo
 	payload, err := s.idTokenValidator.Validate(ctx, idToken)
 	if err != nil {
-		return "", err
+		return userInfo, err
 	}
 
 	email, ok := payload.Claims["email"].(string)
 	if !ok {
-		return "", err
+		return userInfo, errors.New("email not found in payload")
 	}
 
-	return email, nil
+	emailVerified, ok := payload.Claims["email_verified"].(bool)
+	if !ok || !emailVerified {
+		return userInfo, errors.New("email not verified")
+	}
+
+	name, ok := payload.Claims["name"].(string)
+	if !ok || name == "" {
+		name = email
+	}
+
+	userInfo.Email = email
+	userInfo.Name = name
+
+	return userInfo, nil
 }
 
 func (s *AuthService) GenerateAccessTokenWithExpiration(user *models.User, expiresAt time.Time) (string, error) {
