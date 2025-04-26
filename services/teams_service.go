@@ -3,9 +3,11 @@ package services
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"time"
 
+	"github.com/hejmsdz/goslides/common"
 	"github.com/hejmsdz/goslides/dtos"
 	"github.com/hejmsdz/goslides/models"
 	"gorm.io/gorm"
@@ -127,18 +129,18 @@ func (t *TeamsService) JoinTeam(user *models.User, invitationToken string) (*mod
 		Where("expires_at > ?", time.Now()).
 		Take(&invitation).Error
 	if err != nil {
-		return nil, err
+		return nil, common.NewAPIError(http.StatusNotFound, "invitation not found", err)
 	}
 
 	team := invitation.Team
 
 	if userTeam, err := t.GetUserTeam(user, team.UUID.String()); err == nil && userTeam != nil {
-		return nil, errors.New("user is already in team")
+		return nil, common.NewAPIError(http.StatusConflict, "you already belong to this team", err)
 	}
 
 	err = t.db.Model(&team).Association("Users").Append(user)
 	if err != nil {
-		return nil, err
+		return nil, common.NewAPIError(http.StatusInternalServerError, "failed to join team", err)
 	}
 
 	return team, nil

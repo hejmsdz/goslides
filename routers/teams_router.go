@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hejmsdz/goslides/common"
 	"github.com/hejmsdz/goslides/di"
 	"github.com/hejmsdz/goslides/dtos"
 	"github.com/hejmsdz/goslides/services"
@@ -105,7 +106,7 @@ func (h *TeamsHandler) PostTeamJoin(c *gin.Context) {
 
 	team, err := h.Teams.JoinTeam(user, input.Token)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to join team"})
+		common.ReturnError(c, err)
 		return
 	}
 

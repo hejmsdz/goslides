@@ -322,7 +322,7 @@ func TestJoinTeam(t *testing.T) {
 		team, err := tce.Container.Teams.JoinTeam(user, "invalid-token")
 		assert.Error(t, err)
 		assert.Nil(t, team)
-		assert.Contains(t, err.Error(), "record not found")
+		assert.Contains(t, err.Error(), "invitation not found")
 	})
 
 	te.Run("expired invitation returns error", func(t *testing.T, tce *tests.TestCaseEnvironment) {
@@ -362,7 +362,7 @@ func TestJoinTeam(t *testing.T) {
 		joinedTeam, err := tce.Container.Teams.JoinTeam(user2, invitation.Token)
 		assert.Error(t, err)
 		assert.Nil(t, joinedTeam)
-		assert.Contains(t, err.Error(), "record not found")
+		assert.Contains(t, err.Error(), "invitation not found")
 	})
 
 	te.Run("user already in team returns error", func(t *testing.T, tce *tests.TestCaseEnvironment) {
@@ -391,6 +391,6 @@ func TestJoinTeam(t *testing.T) {
 		joinedTeam, err := tce.Container.Teams.JoinTeam(user, invitation.Token)
 		assert.Error(t, err)
 		assert.Nil(t, joinedTeam)
-		assert.Equal(t, "user is already in team", err.Error())
+		assert.Equal(t, "you already belong to this team", err.Error())
 	})
 }
