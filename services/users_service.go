@@ -3,6 +3,7 @@ package services
 import (
 	"errors"
 
+	"github.com/hejmsdz/goslides/dtos"
 	"github.com/hejmsdz/goslides/models"
 	"gorm.io/gorm"
 )
@@ -35,4 +36,10 @@ func (s UsersService) GetUserByEmail(email string) (*models.User, error) {
 	}
 
 	return user, nil
+}
+
+func (s UsersService) UpdateUser(user *models.User, input dtos.UserUpdateRequest) error {
+	user.DisplayName = input.DisplayName
+
+	return s.db.Save(user).Error
 }
