@@ -56,7 +56,7 @@ func (s SongsService) FilterSongs(query string, user *models.User, teamUUID stri
 			return songs
 		}
 
-		db = db.Joins("LEFT JOIN songs AS overrides ON overrides.overridden_song_id = songs.id AND overrides.team_id = ?", team.ID).
+		db = db.Joins("LEFT JOIN songs AS overrides ON overrides.overridden_song_id = songs.id AND overrides.team_id = ? AND overrides.deleted_at IS NULL", team.ID).
 			Where("songs.team_id = ? OR (songs.team_id IS NULL AND overrides.id IS NULL)", team.ID)
 	}
 
