@@ -15,6 +15,7 @@ func RegisterUsersRoutes(r gin.IRouter, dic *di.Container) {
 
 	r.GET("/users/me", h.Auth.AuthMiddleware, h.GetUserMe)
 	r.PATCH("/users/me", h.Auth.AuthMiddleware, h.PatchUserMe)
+	r.DELETE("/users/me", h.Auth.AuthMiddleware, h.DeleteUserMe)
 }
 
 type UsersHandler struct {
@@ -63,4 +64,20 @@ func (h *UsersHandler) PatchUserMe(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, dtos.NewUserMeResponse(user))
+}
+
+func (h *UsersHandler) DeleteUserMe(c *gin.Context) {
+	user := h.Auth.GetCurrentUser(c)
+	if user == nil {
+		common.ReturnAPIError(c, http.StatusUnauthorized, "unauthorized", nil)
+		return
+	}
+
+	err := h.Users.DeleteUser(user)
+	if err != nil {
+		common.ReturnAPIError(c, http.StatusInternalServerError, "failed to delete user", err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }
