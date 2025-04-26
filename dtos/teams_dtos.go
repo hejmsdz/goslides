@@ -1,6 +1,12 @@
 package dtos
 
-import "github.com/hejmsdz/goslides/models"
+import (
+	"fmt"
+	"os"
+	"time"
+
+	"github.com/hejmsdz/goslides/models"
+)
 
 type TeamResponse struct {
 	ID   string `json:"id"`
@@ -31,15 +37,40 @@ type TeamMember struct {
 	Name string `json:"name"`
 }
 
-type TeamMembersResponse = []TeamMember
+type TeamDetailsResponse struct {
+	TeamResponse
+	Members []TeamMember `json:"members"`
+}
 
-func NewTeamMembersResponse(members []*models.User) TeamMembersResponse {
-	resp := make(TeamMembersResponse, len(members))
+func NewTeamDetailsResponse(team *models.Team, members []*models.User) TeamDetailsResponse {
+	membersResp := make([]TeamMember, len(members))
 	for i, member := range members {
-		resp[i] = TeamMember{
+		membersResp[i] = TeamMember{
 			ID:   member.UUID.String(),
 			Name: member.DisplayName,
 		}
 	}
-	return resp
+
+	return TeamDetailsResponse{
+		TeamResponse: NewTeamResponse(team),
+		Members:      membersResp,
+	}
+}
+
+type TeamInvitationResponse struct {
+	Token     string    `json:"token"`
+	URL       string    `json:"url"`
+	ExpiresAt time.Time `json:"expiresAt"`
+}
+
+func NewTeamInvitationResponse(invitation *models.Invitation) TeamInvitationResponse {
+	return TeamInvitationResponse{
+		Token:     invitation.Token,
+		URL:       fmt.Sprintf("%s/invitation/%s", os.Getenv("FRONTEND_URL"), invitation.Token),
+		ExpiresAt: invitation.ExpiresAt,
+	}
+}
+
+type TeamJoinRequest struct {
+	Token string `json:"token"`
 }

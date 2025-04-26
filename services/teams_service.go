@@ -91,14 +91,14 @@ func (t *TeamsService) CreateTeam(user *models.User, input *dtos.TeamRequest) (*
 	return team, nil
 }
 
-func (t *TeamsService) CreateInvitation(user *models.User, uuid string) (string, error) {
+func (t *TeamsService) CreateInvitation(user *models.User, uuid string) (*models.Invitation, error) {
 	if user == nil {
-		return "", errors.New("user is nil")
+		return nil, errors.New("user is nil")
 	}
 
 	team, err := t.GetUserTeam(user, uuid)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	invitation := &models.Invitation{
@@ -108,10 +108,10 @@ func (t *TeamsService) CreateInvitation(user *models.User, uuid string) (string,
 
 	err = t.db.Create(invitation).Error
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return invitation.Token, nil
+	return invitation, nil
 }
 
 func (t *TeamsService) JoinTeam(user *models.User, invitationToken string) (*models.Team, error) {

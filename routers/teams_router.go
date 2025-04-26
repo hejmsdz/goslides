@@ -14,7 +14,7 @@ func RegisterTeamRoutes(r gin.IRouter, dic *di.Container) {
 	auth := dic.Auth.AuthMiddleware
 
 	r.GET("/teams", auth, h.GetTeams)
-	r.GET("/teams/:uuid/members", auth, h.GetTeamMembers)
+	r.GET("/teams/:uuid", auth, h.GetTeam)
 	r.POST("/teams", auth, h.PostTeam)
 	r.POST("/teams/:uuid/invite", auth, h.PostTeamInvite)
 	r.POST("/teams/join", auth, h.PostTeamJoin)
@@ -42,7 +42,7 @@ func (h *TeamsHandler) GetTeams(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-func (h *TeamsHandler) GetTeamMembers(c *gin.Context) {
+func (h *TeamsHandler) GetTeam(c *gin.Context) {
 	user := h.Auth.GetCurrentUser(c)
 	uuid := c.Param("uuid")
 
@@ -58,7 +58,7 @@ func (h *TeamsHandler) GetTeamMembers(c *gin.Context) {
 		return
 	}
 
-	resp := dtos.NewTeamMembersResponse(members)
+	resp := dtos.NewTeamDetailsResponse(team, members)
 	c.JSON(http.StatusOK, resp)
 }
 
@@ -85,20 +85,25 @@ func (h *TeamsHandler) PostTeamInvite(c *gin.Context) {
 	user := h.Auth.GetCurrentUser(c)
 	uuid := c.Param("uuid")
 
-	token, err := h.Teams.CreateInvitation(user, uuid)
+	invitation, err := h.Teams.CreateInvitation(user, uuid)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create invitation"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"token": token})
+	c.JSON(http.StatusOK, dtos.NewTeamInvitationResponse(invitation))
 }
 
 func (h *TeamsHandler) PostTeamJoin(c *gin.Context) {
 	user := h.Auth.GetCurrentUser(c)
-	token := c.Query("token")
 
-	team, err := h.Teams.JoinTeam(user, token)
+	input := &dtos.TeamJoinRequest{}
+	if err := c.ShouldBindJSON(input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	team, err := h.Teams.JoinTeam(user, input.Token)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to join team"})
 		return
