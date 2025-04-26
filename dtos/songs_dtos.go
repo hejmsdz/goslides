@@ -2,7 +2,6 @@ package dtos
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/hejmsdz/goslides/models"
 )
@@ -59,7 +58,6 @@ type SongDetailResponse struct {
 
 func NewSongDetailResponse(song *models.Song, canEdit bool, canDelete bool, canOverride bool) SongDetailResponse {
 	var overriddenSongID *string
-	fmt.Printf("overriddenSong: %+v\n", song.OverriddenSong)
 	if song.OverriddenSong != nil {
 		songID := song.OverriddenSong.UUID.String()
 		overriddenSongID = &songID

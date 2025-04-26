@@ -2,7 +2,6 @@ package services
 
 import (
 	"database/sql"
-	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
@@ -107,7 +106,6 @@ func (s SongsService) UpdateSong(id string, input dtos.SongRequest, user *models
 	}
 
 	if !s.auth.Can(user, "update", song) {
-		fmt.Printf("no permission to update song %+v\n", err)
 		return nil, common.NewAPIError(403, "forbidden", nil)
 	}
 
@@ -131,7 +129,6 @@ func (s SongsService) UpdateSong(id string, input dtos.SongRequest, user *models
 
 	err = s.db.Save(&song).Error
 	if err != nil {
-		fmt.Printf("failed to save song %+v\n", err)
 		return nil, common.NewAPIError(500, "failed to save", err)
 	}
 
