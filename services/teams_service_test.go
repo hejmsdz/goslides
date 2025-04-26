@@ -59,8 +59,9 @@ func TestCreateTeam(t *testing.T) {
 		// Create 10 teams for the user
 		for i := 0; i < 10; i++ {
 			team := &models.Team{
-				Name:  fmt.Sprintf("Team %d", i+1),
-				Users: []*models.User{user},
+				Name:        fmt.Sprintf("Team %d", i+1),
+				CreatedByID: user.ID,
+				Users:       []*models.User{user},
 			}
 			err := tce.DB.Create(team).Error
 			assert.NoError(t, err)
@@ -95,8 +96,9 @@ func TestLeaveTeam(t *testing.T) {
 
 		// Create a team with the user as member
 		team := &models.Team{
-			Name:  "Test Team",
-			Users: []*models.User{user},
+			Name:        "Test Team",
+			CreatedByID: user.ID,
+			Users:       []*models.User{user},
 		}
 		err = tce.DB.Create(team).Error
 		assert.NoError(t, err)
@@ -154,8 +156,9 @@ func TestLeaveTeam(t *testing.T) {
 
 		// Create a team with only user1 as member
 		team := &models.Team{
-			Name:  "Test Team",
-			Users: []*models.User{user1},
+			Name:        "Test Team",
+			CreatedByID: user1.ID,
+			Users:       []*models.User{user1},
 		}
 		err = tce.DB.Create(team).Error
 		assert.NoError(t, err)
@@ -181,22 +184,23 @@ func TestCreateInvitation(t *testing.T) {
 
 		// Create a team with the user as member
 		team := &models.Team{
-			Name:  "Test Team",
-			Users: []*models.User{user},
+			Name:        "Test Team",
+			CreatedByID: user.ID,
+			Users:       []*models.User{user},
 		}
 		err = tce.DB.Create(team).Error
 		assert.NoError(t, err)
 
 		// Create an invitation
-		token, err := tce.Container.Teams.CreateInvitation(user, team.UUID.String())
+		invitation, err := tce.Container.Teams.CreateInvitation(user, team.UUID.String())
 		assert.NoError(t, err)
-		assert.NotEmpty(t, token)
+		assert.NotEmpty(t, invitation.Token)
 
 		// Verify invitation was created
-		var invitation models.Invitation
-		err = tce.DB.Where("token = ?", token).First(&invitation).Error
+		var retrievedInvitation models.Invitation
+		err = tce.DB.Where("token = ?", invitation.Token).First(&retrievedInvitation).Error
 		assert.NoError(t, err)
-		assert.Equal(t, team.ID, invitation.TeamID)
+		assert.Equal(t, team.ID, retrievedInvitation.TeamID)
 	})
 
 	te.Run("nil user returns error", func(t *testing.T, tce *tests.TestCaseEnvironment) {
@@ -239,8 +243,9 @@ func TestCreateInvitation(t *testing.T) {
 
 		// Create a team with only user1 as member
 		team := &models.Team{
-			Name:  "Test Team",
-			Users: []*models.User{user1},
+			Name:        "Test Team",
+			CreatedByID: user1.ID,
+			Users:       []*models.User{user1},
 		}
 		err = tce.DB.Create(team).Error
 		assert.NoError(t, err)
@@ -273,18 +278,19 @@ func TestJoinTeam(t *testing.T) {
 
 		// Create a team with user1 as member
 		team := &models.Team{
-			Name:  "Test Team",
-			Users: []*models.User{user1},
+			Name:        "Test Team",
+			CreatedByID: user1.ID,
+			Users:       []*models.User{user1},
 		}
 		err = tce.DB.Create(team).Error
 		assert.NoError(t, err)
 
 		// Create an invitation
-		token, err := tce.Container.Teams.CreateInvitation(user1, team.UUID.String())
+		invitation, err := tce.Container.Teams.CreateInvitation(user1, team.UUID.String())
 		assert.NoError(t, err)
 
 		// Have user2 join the team using the invitation
-		joinedTeam, err := tce.Container.Teams.JoinTeam(user2, token)
+		joinedTeam, err := tce.Container.Teams.JoinTeam(user2, invitation.Token)
 		assert.NoError(t, err)
 		assert.NotNil(t, joinedTeam)
 		assert.Equal(t, team.ID, joinedTeam.ID)
@@ -336,16 +342,18 @@ func TestJoinTeam(t *testing.T) {
 
 		// Create a team with user1 as member
 		team := &models.Team{
-			Name:  "Test Team",
-			Users: []*models.User{user1},
+			Name:        "Test Team",
+			CreatedByID: user1.ID,
+			Users:       []*models.User{user1},
 		}
 		err = tce.DB.Create(team).Error
 		assert.NoError(t, err)
 
 		// Create an invitation and manually set it as expired
 		invitation := &models.Invitation{
-			Team:      team,
-			ExpiresAt: time.Now().Add(-1 * time.Hour), // Set to 1 hour in the past
+			Team:        team,
+			CreatedByID: user1.ID,
+			ExpiresAt:   time.Now().Add(-1 * time.Hour), // Set to 1 hour in the past
 		}
 		err = tce.DB.Create(invitation).Error
 		assert.NoError(t, err)
@@ -368,18 +376,19 @@ func TestJoinTeam(t *testing.T) {
 
 		// Create a team with the user as member
 		team := &models.Team{
-			Name:  "Test Team",
-			Users: []*models.User{user},
+			Name:        "Test Team",
+			CreatedByID: user.ID,
+			Users:       []*models.User{user},
 		}
 		err = tce.DB.Create(team).Error
 		assert.NoError(t, err)
 
 		// Create an invitation
-		token, err := tce.Container.Teams.CreateInvitation(user, team.UUID.String())
+		invitation, err := tce.Container.Teams.CreateInvitation(user, team.UUID.String())
 		assert.NoError(t, err)
 
 		// Try to join the team again
-		joinedTeam, err := tce.Container.Teams.JoinTeam(user, token)
+		joinedTeam, err := tce.Container.Teams.JoinTeam(user, invitation.Token)
 		assert.Error(t, err)
 		assert.Nil(t, joinedTeam)
 		assert.Equal(t, "user is already in team", err.Error())

@@ -61,16 +61,17 @@ type TestData struct {
 func createTestData(t *testing.T, tce *tests.TestCaseEnvironment) TestData {
 	db := tce.DB
 
-	zebrani := &models.Team{Name: "Zebrani w dnia połowie"}
-	roch := &models.Team{Name: "Schola DA św. Rocha"}
+	root := &models.User{Email: "root@admin.com", Teams: []*models.Team{}, IsAdmin: true}
+	db.Create(root)
+
+	zebrani := &models.Team{Name: "Zebrani w dnia połowie", CreatedByID: root.ID}
+	roch := &models.Team{Name: "Schola DA św. Rocha", CreatedByID: root.ID}
 	db.Create(zebrani)
 	db.Create(roch)
 
-	root := &models.User{Email: "root@admin.com", Teams: []*models.Team{}, IsAdmin: true}
 	user1 := &models.User{Email: "user1@ofm.pl", Teams: []*models.Team{zebrani}}
 	user2 := &models.User{Email: "user2@swro.ch", Teams: []*models.Team{roch}}
 	user3 := &models.User{Email: "user3@archpoznan.pl", Teams: []*models.Team{roch, zebrani}}
-	db.Create(root)
 	db.Create(user1)
 	db.Create(user2)
 	db.Create(user3)

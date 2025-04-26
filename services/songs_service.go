@@ -76,9 +76,11 @@ func (s SongsService) CreateSong(input dtos.SongRequest, user *models.User) (*mo
 	}
 
 	song := &models.Song{
-		Title:    input.Title,
-		Subtitle: sql.NullString{String: input.Subtitle, Valid: input.Subtitle != ""},
-		Lyrics:   strings.Join(input.Lyrics, "\n\n"),
+		Title:       input.Title,
+		Subtitle:    sql.NullString{String: input.Subtitle, Valid: input.Subtitle != ""},
+		Lyrics:      strings.Join(input.Lyrics, "\n\n"),
+		CreatedByID: user.ID,
+		UpdatedByID: user.ID,
 	}
 
 	if team != nil {
@@ -117,6 +119,7 @@ func (s SongsService) UpdateSong(id string, input dtos.SongRequest, user *models
 	song.Title = input.Title
 	song.Subtitle = sql.NullString{String: input.Subtitle, Valid: input.Subtitle != ""}
 	song.Lyrics = strings.Join(input.Lyrics, "\n\n")
+	song.UpdatedByID = user.ID
 
 	if newTeam == nil {
 		song.Team = nil

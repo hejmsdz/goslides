@@ -79,8 +79,9 @@ func (t *TeamsService) CreateTeam(user *models.User, input *dtos.TeamRequest) (*
 	}
 
 	team := &models.Team{
-		Name:  input.Name,
-		Users: []*models.User{user},
+		Name:        input.Name,
+		CreatedByID: user.ID,
+		Users:       []*models.User{user},
 	}
 
 	err = t.db.Create(team).Error
@@ -102,8 +103,9 @@ func (t *TeamsService) CreateInvitation(user *models.User, uuid string) (*models
 	}
 
 	invitation := &models.Invitation{
-		Team:      team,
-		ExpiresAt: time.Now().Add(t.invitationDuration),
+		Team:        team,
+		CreatedByID: user.ID,
+		ExpiresAt:   time.Now().Add(t.invitationDuration),
 	}
 
 	err = t.db.Create(invitation).Error

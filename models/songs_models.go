@@ -23,6 +23,10 @@ type Song struct {
 	Team             *Team
 	OverriddenSong   *Song
 	OverriddenSongID *uint
+	CreatedByID      uint  `gorm:"not null"`
+	CreatedBy        *User `gorm:"foreignKey:CreatedByID"`
+	UpdatedByID      uint  `gorm:"not null"`
+	UpdatedBy        *User `gorm:"foreignKey:UpdatedByID"`
 }
 
 var verseName = regexp.MustCompile(`^\[(\w+)\]\s+`)

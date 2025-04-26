@@ -10,9 +10,11 @@ import (
 
 type Team struct {
 	gorm.Model
-	UUID  uuid.UUID `gorm:"uniqueIndex"`
-	Name  string
-	Users []*User `gorm:"many2many:user_teams;"`
+	UUID        uuid.UUID `gorm:"uniqueIndex"`
+	Name        string
+	CreatedByID uint    `gorm:"not null"`
+	CreatedBy   *User   `gorm:"foreignKey:CreatedByID"`
+	Users       []*User `gorm:"many2many:user_teams;"`
 }
 
 func (t *Team) BeforeSave(tx *gorm.DB) (err error) {
@@ -25,10 +27,12 @@ func (t *Team) BeforeSave(tx *gorm.DB) (err error) {
 
 type Invitation struct {
 	gorm.Model
-	TeamID    uint
-	Team      *Team
-	Token     string    `gorm:"not null;unique"`
-	ExpiresAt time.Time `gorm:"not null"`
+	TeamID      uint
+	Team        *Team
+	Token       string    `gorm:"not null;unique"`
+	ExpiresAt   time.Time `gorm:"not null"`
+	CreatedByID uint      `gorm:"not null"`
+	CreatedBy   *User     `gorm:"foreignKey:CreatedByID"`
 }
 
 func (i *Invitation) BeforeSave(tx *gorm.DB) (err error) {
