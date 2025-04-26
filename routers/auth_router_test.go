@@ -12,10 +12,10 @@ import (
 	"gorm.io/gorm"
 )
 
-func getAuthMe(t *testing.T, router *gin.Engine, token string) (*httptest.ResponseRecorder, *dtos.AuthMeResponse, *dtos.ErrorResponse) {
-	return tests.Request[dtos.AuthMeResponse](t, router, tests.RequestOptions{
+func getAuthMe(t *testing.T, router *gin.Engine, token string) (*httptest.ResponseRecorder, *dtos.UserMeResponse, *dtos.ErrorResponse) {
+	return tests.Request[dtos.UserMeResponse](t, router, tests.RequestOptions{
 		Method: "GET",
-		Path:   "/v2/auth/me",
+		Path:   "/v2/users/me",
 		Token:  token,
 	})
 }

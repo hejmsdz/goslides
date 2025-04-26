@@ -14,7 +14,6 @@ import (
 func RegisterAuthRoutes(r gin.IRouter, dic *di.Container) {
 	h := NewAuthHandler(dic)
 
-	r.GET("/auth/me", h.Auth.AuthMiddleware, h.GetAuthMe)
 	r.POST("/auth/google", h.PostAuthGoogle)
 	r.POST("/auth/refresh", h.PostAuthRefresh)
 	r.DELETE("/auth/refresh", h.DeleteAuthRefresh)
@@ -30,15 +29,6 @@ func NewAuthHandler(dic *di.Container) *AuthHandler {
 		Users: dic.Users,
 		Auth:  dic.Auth,
 	}
-}
-
-func (h *AuthHandler) GetAuthMe(c *gin.Context) {
-	user := h.Auth.GetCurrentUser(c)
-	if user == nil {
-		common.ReturnAPIError(c, http.StatusUnauthorized, "unauthorized", nil)
-		return
-	}
-	c.JSON(http.StatusOK, dtos.NewAuthMeResponse(user))
 }
 
 func (h *AuthHandler) PostAuthGoogle(c *gin.Context) {
