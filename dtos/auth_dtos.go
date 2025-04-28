@@ -25,3 +25,17 @@ func NewAuthResponse(token string, refreshToken string, user *models.User, isNew
 		IsNewUser:    isNewUser,
 	}
 }
+
+type AuthNonceVerifyRequest struct {
+	Nonce string `json:"nonce"`
+}
+
+type AuthNonceResponse struct {
+	Nonce string `json:"nonce"`
+}
+
+func NewAuthNonceResponse(nonce string) *AuthNonceResponse {
+	return &AuthNonceResponse{
+		Nonce: nonce,
+	}
+}

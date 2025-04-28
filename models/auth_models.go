@@ -44,3 +44,29 @@ func (rt *RefreshToken) Regenerate() error {
 
 	return nil
 }
+
+type Nonce struct {
+	gorm.Model
+	Token     string `gorm:"uniqueIndex"`
+	ExpiresAt time.Time
+	UserID    uint  `gorm:"not null"`
+	User      *User `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+}
+
+const nonceLength = 32
+const nonceValidity = time.Duration(time.Second * 30)
+
+func NewNonce(userID uint) *Nonce {
+	token, err := common.GetSecureRandomString(nonceLength)
+	if err != nil {
+		return nil
+	}
+
+	nonce := Nonce{
+		Token:     token,
+		ExpiresAt: time.Now().Add(nonceValidity),
+		UserID:    userID,
+	}
+
+	return &nonce
+}

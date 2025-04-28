@@ -17,6 +17,8 @@ func RegisterAuthRoutes(r gin.IRouter, dic *di.Container) {
 	r.POST("/auth/google", h.PostAuthGoogle)
 	r.POST("/auth/refresh", h.PostAuthRefresh)
 	r.DELETE("/auth/refresh", h.DeleteAuthRefresh)
+	r.POST("/auth/nonce/verify", h.PostAuthNonceVerify)
+	r.POST("/auth/nonce", h.Auth.AuthMiddleware, h.PostAuthNonce)
 }
 
 type AuthHandler struct {
@@ -115,4 +117,44 @@ func (h *AuthHandler) DeleteAuthRefresh(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+func (h *AuthHandler) PostAuthNonce(c *gin.Context) {
+	user := h.Auth.GetCurrentUser(c)
+
+	nonce, err := h.Auth.GenerateNonce(user)
+	if err != nil {
+		common.ReturnAPIError(c, http.StatusInternalServerError, "failed to generate nonce", errors.Wrap(err, "failed to generate nonce"))
+		return
+	}
+
+	c.JSON(http.StatusOK, dtos.NewAuthNonceResponse(nonce))
+}
+
+func (h *AuthHandler) PostAuthNonceVerify(c *gin.Context) {
+	var data dtos.AuthNonceVerifyRequest
+	if err := c.ShouldBind(&data); err != nil {
+		common.ReturnBadRequestError(c, err)
+		return
+	}
+
+	user, err := h.Auth.GetUserFromNonce(data.Nonce)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid nonce"})
+		return
+	}
+
+	accessToken, err := h.Auth.GenerateAccessToken(user)
+	if err != nil {
+		common.ReturnAPIError(c, http.StatusInternalServerError, "failed to authenticate", errors.Wrap(err, "failed to generate access token"))
+		return
+	}
+
+	refreshToken, err := h.Auth.GenerateRefreshToken(user)
+	if err != nil {
+		common.ReturnAPIError(c, http.StatusInternalServerError, "failed to authenticate", errors.Wrap(err, "failed to generate refresh token"))
+		return
+	}
+
+	c.JSON(http.StatusOK, dtos.NewAuthResponse(accessToken, refreshToken, user, false))
 }

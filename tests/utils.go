@@ -8,7 +8,6 @@ import (
 )
 
 func ClearDatabase(testDB *gorm.DB) {
-
 	for _, model := range models.AllModels {
 		stmt := &gorm.Statement{DB: testDB}
 		stmt.Parse(&model)

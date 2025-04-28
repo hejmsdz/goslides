@@ -8,6 +8,7 @@ var AllModels = []interface{}{
 	&RefreshToken{},
 	&Team{},
 	&Invitation{},
+	&Nonce{},
 }
 
 func AutoMigrate(db *gorm.DB) error {

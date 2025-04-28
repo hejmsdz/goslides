@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/hejmsdz/goslides/common"
 	"github.com/hejmsdz/goslides/models"
 	"gorm.io/gorm"
 )
@@ -171,6 +172,29 @@ func (s *AuthService) DeleteRefreshToken(tokenString string) error {
 
 	result := s.db.Delete(rt)
 	return result.Error
+}
+
+func (s *AuthService) GenerateNonce(user *models.User) (string, error) {
+	nonce := models.NewNonce(user.ID)
+	result := s.db.Create(&nonce)
+	if result.Error != nil {
+		fmt.Println(result.Error)
+		return "", result.Error
+	}
+
+	return nonce.Token, nil
+}
+
+func (s *AuthService) GetUserFromNonce(token string) (*models.User, error) {
+	var nonce models.Nonce
+	result := s.db.Preload("User").Where("token = ? AND expires_at > current_timestamp", token).Take(&nonce)
+	if result.Error != nil {
+		return nil, common.NewAPIError(http.StatusUnauthorized, "invalid nonce", result.Error)
+	}
+
+	s.db.Delete(&nonce)
+
+	return nonce.User, nil
 }
 
 func (s *AuthService) UserBelongsToTeam(user *models.User, teamID uint) bool {
