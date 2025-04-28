@@ -38,7 +38,7 @@ type LiveSessionResponse struct {
 func NewLiveSessionResponse(id string, token string) LiveSessionResponse {
 	return LiveSessionResponse{
 		ID:    id,
-		URL:   common.GetFrontendURL(fmt.Sprintf("/%s", id)),
+		URL:   common.GetFrontendURL(fmt.Sprintf("%s", id)),
 		Token: token,
 	}
 }
