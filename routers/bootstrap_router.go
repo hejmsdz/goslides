@@ -35,11 +35,9 @@ func getEnvOrNil(key string) *string {
 }
 
 func NewBootstrapHandler(dic *di.Container) *BootstrapHandler {
-	editUrl := common.GetFrontendURL("dashboard/songs/{id}")
-
 	return &BootstrapHandler{
 		Bootstrap: dtos.BootstrapResponse{
-			SongEditURL: &editUrl,
+			FrontendURL: common.GetFrontendURL(""),
 			ContactURL:  getEnvOrNil("CONTACT_URL"),
 			SupportURL:  getEnvOrNil("SUPPORT_URL"),
 		},
