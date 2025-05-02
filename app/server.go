@@ -13,7 +13,7 @@ import (
 
 func newCorsMiddleware(frontendURL string) gin.HandlerFunc {
 	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{frontendURL}
+	config.AllowOrigins = []string{frontendURL, "http://localhost:*"}
 
 	return cors.New(config)
 }
