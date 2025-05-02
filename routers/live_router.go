@@ -21,6 +21,7 @@ func RegisterLiveRoutes(r gin.IRouter, dic *di.Container) {
 	r.POST("/live", h.Auth.OptionalAuthMiddleware, h.PostLive)
 	r.PUT("/live/:key", h.Auth.OptionalAuthMiddleware, h.PutLive)
 	r.GET("/live/:key", h.GetLive)
+	r.GET("/live/:key/status", h.GetLiveStatus)
 	r.DELETE("/live/:key", h.DeleteLive)
 	r.POST("/live/:key/page", h.PostLivePage)
 }
@@ -149,6 +150,18 @@ func (h *LiveHandler) GetLive(c *gin.Context) {
 			return false
 		}
 	})
+}
+
+func (h *LiveHandler) GetLiveStatus(c *gin.Context) {
+	key := c.Param("key")
+
+	session, ok := h.Live.GetSession(key)
+	if !ok {
+		common.ReturnAPIError(c, http.StatusNotFound, "live session not found", nil)
+		return
+	}
+
+	c.JSON(http.StatusOK, session)
 }
 
 func (h *LiveHandler) DeleteLive(c *gin.Context) {
