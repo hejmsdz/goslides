@@ -2,6 +2,7 @@ package app
 
 import (
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	analytics "github.com/hejmsdz/api-analytics/analytics/go/gin"
@@ -22,15 +23,33 @@ func corsMiddleware(c *gin.Context) {
 	c.Next()
 }
 
+func newAnalyticsMiddleware(analyticsKey string) gin.HandlerFunc {
+	config := analytics.NewConfig()
+	config.PrivacyLevel = 1
+	config.GetPath = func(c *gin.Context) string {
+		path := c.Request.URL.Path
+		if strings.HasPrefix(path, "/public") && strings.HasSuffix(path, ".pdf") {
+			return "/public/_.pdf"
+		}
+
+		fullPath := c.FullPath()
+		if fullPath != "" {
+			return fullPath
+		}
+
+		return path
+	}
+
+	return analytics.AnalyticsWithConfig(analyticsKey, config)
+}
+
 func NewApp(container *di.Container) *gin.Engine {
 	r := gin.Default()
 	r.Use(corsMiddleware)
 	r.TrustedPlatform = os.Getenv("TRUSTED_PLATFORM")
 
 	if analyticsKey := os.Getenv("API_ANALYTICS_KEY"); analyticsKey != "" {
-		config := analytics.NewConfig()
-		config.PrivacyLevel = 1
-		r.Use(analytics.AnalyticsWithConfig(analyticsKey, config))
+		r.Use(newAnalyticsMiddleware(analyticsKey))
 	}
 
 	r.Static("/public", "./public")
