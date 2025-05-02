@@ -44,5 +44,9 @@ func NewApp(container *di.Container) *gin.Engine {
 	routers.RegisterLiturgyRoutes(v2, container)
 	routers.RegisterLiveRoutes(v2, container)
 
+	r.NoRoute(func(c *gin.Context) {
+		c.JSON(404, gin.H{"error": "api route not found"})
+	})
+
 	return r
 }
