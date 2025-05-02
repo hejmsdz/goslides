@@ -4,23 +4,18 @@ import (
 	"os"
 	"strings"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	analytics "github.com/hejmsdz/api-analytics/analytics/go/gin"
 	"github.com/hejmsdz/goslides/di"
 	"github.com/hejmsdz/goslides/routers"
 )
 
-func corsMiddleware(c *gin.Context) {
-	c.Writer.Header().Set("Access-Control-Allow-Origin", c.Request.Header.Get("Origin"))
-	c.Writer.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding")
-	c.Writer.Header().Set("Access-Control-Allow-Methods", "OPTIONS, GET, POST")
+func newCorsMiddleware(frontendURL string) gin.HandlerFunc {
+	config := cors.DefaultConfig()
+	config.AllowOrigins = []string{frontendURL}
 
-	if c.Request.Method == "OPTIONS" {
-		c.AbortWithStatus(204)
-		return
-	}
-
-	c.Next()
+	return cors.New(config)
 }
 
 func newAnalyticsMiddleware(analyticsKey string) gin.HandlerFunc {
@@ -45,7 +40,7 @@ func newAnalyticsMiddleware(analyticsKey string) gin.HandlerFunc {
 
 func NewApp(container *di.Container) *gin.Engine {
 	r := gin.Default()
-	r.Use(corsMiddleware)
+	r.Use(newCorsMiddleware(os.Getenv("FRONTEND_URL")))
 	r.TrustedPlatform = os.Getenv("TRUSTED_PLATFORM")
 
 	if analyticsKey := os.Getenv("API_ANALYTICS_KEY"); analyticsKey != "" {
