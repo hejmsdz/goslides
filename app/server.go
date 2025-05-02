@@ -1,7 +1,10 @@
 package app
 
 import (
+	"os"
+
 	"github.com/gin-gonic/gin"
+	analytics "github.com/hejmsdz/api-analytics/analytics/go/gin"
 	"github.com/hejmsdz/goslides/di"
 	"github.com/hejmsdz/goslides/routers"
 )
@@ -22,6 +25,13 @@ func corsMiddleware(c *gin.Context) {
 func NewApp(container *di.Container) *gin.Engine {
 	r := gin.Default()
 	r.Use(corsMiddleware)
+	r.TrustedPlatform = os.Getenv("TRUSTED_PLATFORM")
+
+	if analyticsKey := os.Getenv("API_ANALYTICS_KEY"); analyticsKey != "" {
+		config := analytics.NewConfig()
+		config.PrivacyLevel = 1
+		r.Use(analytics.AnalyticsWithConfig(analyticsKey, config))
+	}
 
 	r.Static("/public", "./public")
 	v2 := r.Group("/v2")
