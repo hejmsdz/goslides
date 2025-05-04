@@ -53,6 +53,11 @@ func NewApp(container *di.Container) *gin.Engine {
 	}
 
 	r.Static("/public", "./public")
+
+	r.GET("/status", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+
 	v2 := r.Group("/v2")
 	routers.RegisterBootstrapRoutes(v2, container)
 	routers.RegisterAuthRoutes(v2, container)
