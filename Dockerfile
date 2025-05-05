@@ -8,7 +8,7 @@ RUN go mod graph | awk '{if ($1 !~ "@") print $2}' | xargs go get
 COPY . ./
 RUN go build -v -o server
 
-FROM scratch
+FROM alpine
 WORKDIR /app
 ENV PORT=8000
 ENV GIN_MODE=release
