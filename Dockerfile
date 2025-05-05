@@ -1,15 +1,14 @@
 FROM golang:1.24 AS builder
 WORKDIR /app
+ENV CGO_ENABLED=0
 
 COPY go.mod go.sum ./
-RUN go mod download
 RUN go mod graph | awk '{if ($1 !~ "@") print $2}' | xargs go get
 
 COPY . ./
 RUN go build -v -o server
 
-FROM alpine
-RUN apk add --no-cache libc6-compat
+FROM scratch
 WORKDIR /app
 ENV PORT=8000
 ENV GIN_MODE=release
