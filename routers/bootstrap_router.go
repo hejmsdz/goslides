@@ -58,7 +58,13 @@ func (h *BootstrapHandler) UpdateRelease(force bool) {
 
 	currentVersion, _ := strings.CutPrefix(*release.TagName, "v")
 	h.Bootstrap.CurrentVersion = currentVersion
-	h.Bootstrap.AppDownloadURL = *release.HTMLURL
+
+	envUrl := getEnvOrNil("APP_DOWNLOAD_URL")
+	if envUrl != nil {
+		h.Bootstrap.AppDownloadURL = *envUrl
+	} else {
+		h.Bootstrap.AppDownloadURL = *release.HTMLURL
+	}
 }
 
 func (h *BootstrapHandler) GetBootstrap(c *gin.Context) {
