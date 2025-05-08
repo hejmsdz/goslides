@@ -1,7 +1,9 @@
 package di
 
 import (
+	"github.com/hejmsdz/goslides/repos"
 	"github.com/hejmsdz/goslides/services"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
@@ -15,13 +17,15 @@ type Container struct {
 	Teams   *services.TeamsService
 }
 
-func NewContainer(db *gorm.DB) *Container {
+func NewContainer(db *gorm.DB, redis *redis.Client) *Container {
+
 	users := services.NewUsersService(db)
 	idTokenValidator := services.NewGoogleIDTokenValidator()
 	auth := services.NewAuthService(db, users, idTokenValidator)
 	teams := services.NewTeamsService(db)
 	songs := services.NewSongsService(db, auth, teams)
-	liturgy := services.NewLiturgyService()
+	liturgyRepo := repos.NewRedisLiturgyRepo(redis)
+	liturgy := services.NewLiturgyService(liturgyRepo)
 
 	return &Container{
 		DB:      db,
@@ -40,7 +44,7 @@ func NewTestContainer(db *gorm.DB) *Container {
 	auth := services.NewAuthService(db, users, idTokenValidator)
 	teams := services.NewTeamsService(db)
 	songs := services.NewSongsService(db, auth, teams)
-	liturgy := services.NewLiturgyService()
+	liturgy := services.NewLiturgyService(repos.NewMemoryLiturgyRepo())
 
 	return &Container{
 		DB:      db,

@@ -7,11 +7,12 @@ import (
 
 	"github.com/andybalholm/cascadia"
 	"github.com/hejmsdz/goslides/dtos"
+	"github.com/hejmsdz/goslides/repos"
 	"golang.org/x/net/html"
 )
 
 type LiturgyService struct {
-	days map[string]dtos.LiturgyItems
+	repo repos.LiturgyRepo
 }
 
 func getAttributeValue(node *html.Node, key string) string {
@@ -87,7 +88,7 @@ func getAcclamation(doc *html.Node) (string, string, bool) {
 func (l LiturgyService) fetchLiturgy(date string) (dtos.LiturgyItems, bool) {
 	liturgy := dtos.LiturgyItems{}
 
-	url := fmt.Sprintf("https://niezbednik.niedziela.pl/site/liturgia?data=%s", date)
+	url := fmt.Sprintf("https://niezbednik.niedziela.pl/liturgia/%s", date)
 	res, err := http.Get(url)
 	if err != nil {
 		return liturgy, false
@@ -109,21 +110,21 @@ func (l LiturgyService) fetchLiturgy(date string) (dtos.LiturgyItems, bool) {
 	return liturgy, psalmOk && acclamationOk
 }
 
-func NewLiturgyService() *LiturgyService {
+func NewLiturgyService(repo repos.LiturgyRepo) *LiturgyService {
 	return &LiturgyService{
-		days: make(map[string]dtos.LiturgyItems),
+		repo: repo,
 	}
 }
 
 func (l *LiturgyService) GetDay(date string) (dtos.LiturgyItems, bool) {
-	liturgy, ok := l.days[date]
+	liturgy, ok := l.repo.GetDay(date)
 	if ok {
 		return liturgy, true
 	}
 
 	liturgy, ok = l.fetchLiturgy(date)
 	if ok {
-		l.days[date] = liturgy
+		l.repo.StoreDay(date, liturgy)
 	}
 
 	return liturgy, ok

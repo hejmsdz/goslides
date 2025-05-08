@@ -13,7 +13,8 @@ import (
 
 func main() {
 	db := database.InitializeDB(os.Getenv("DATABASE"))
-	container := di.NewContainer(db)
+	redis := database.InitializeRedis(os.Getenv("REDIS"))
+	container := di.NewContainer(db, redis)
 
 	app := app.NewApp(container)
 	srv := &http.Server{
