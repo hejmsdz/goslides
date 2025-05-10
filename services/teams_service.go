@@ -143,6 +143,8 @@ func (t *TeamsService) JoinTeam(user *models.User, invitationToken string) (*mod
 		return nil, common.NewAPIError(http.StatusInternalServerError, "failed to join team", err)
 	}
 
+	t.db.Delete(&invitation)
+
 	return team, nil
 }
 

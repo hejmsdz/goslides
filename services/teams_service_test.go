@@ -393,4 +393,48 @@ func TestJoinTeam(t *testing.T) {
 		assert.Nil(t, joinedTeam)
 		assert.Equal(t, "you already belong to this team", err.Error())
 	})
+
+	te.Run("invitation can be used only once", func(t *testing.T, tce *tests.TestCaseEnvironment) {
+		user1 := &models.User{
+			Email:       "user1@example.com",
+			DisplayName: "User 1",
+		}
+		user2 := &models.User{
+			Email:       "user2@example.com",
+			DisplayName: "User 2",
+		}
+		user3 := &models.User{
+			Email:       "user3@example.com",
+			DisplayName: "User 3",
+		}
+		for _, user := range []*models.User{user1, user2, user3} {
+			err := tce.DB.Create(user).Error
+			assert.NoError(t, err)
+		}
+
+		// Create a team with user1 as member
+		team := &models.Team{
+			Name:        "Test Team",
+			CreatedByID: user1.ID,
+			Users:       []*models.User{user1},
+		}
+		err := tce.DB.Create(team).Error
+		assert.NoError(t, err)
+
+		// Create an invitation
+		invitation, err := tce.Container.Teams.CreateInvitation(user1, team.UUID.String())
+		assert.NoError(t, err)
+
+		// Have user2 join the team using the invitation
+		joinedTeam, err := tce.Container.Teams.JoinTeam(user2, invitation.Token)
+		assert.NoError(t, err)
+		assert.NotNil(t, joinedTeam)
+		assert.Equal(t, team.ID, joinedTeam.ID)
+
+		// Try to have user3 join the team again
+		joinedTeam, err = tce.Container.Teams.JoinTeam(user3, invitation.Token)
+		assert.Error(t, err)
+		assert.Nil(t, joinedTeam)
+		assert.Equal(t, "invitation not found", err.Error())
+	})
 }
