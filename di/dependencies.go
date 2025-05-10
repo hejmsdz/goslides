@@ -21,7 +21,8 @@ func NewContainer(db *gorm.DB, redis *redis.Client) *Container {
 
 	users := services.NewUsersService(db)
 	idTokenValidator := services.NewGoogleIDTokenValidator()
-	auth := services.NewAuthService(db, users, idTokenValidator)
+	nonceRepo := repos.NewRedisNonceRepo(redis)
+	auth := services.NewAuthService(db, users, idTokenValidator, nonceRepo)
 	teams := services.NewTeamsService(db)
 	songs := services.NewSongsService(db, auth, teams)
 	liturgyRepo := repos.NewRedisLiturgyRepo(redis)
@@ -42,7 +43,8 @@ func NewContainer(db *gorm.DB, redis *redis.Client) *Container {
 func NewTestContainer(db *gorm.DB) *Container {
 	users := services.NewUsersService(db)
 	idTokenValidator := services.NewMockIDTokenValidator()
-	auth := services.NewAuthService(db, users, idTokenValidator)
+	nonceRepo := repos.NewSQLNonceRepo(db) // repos.NewRedisNonceRepo(redis)
+	auth := services.NewAuthService(db, users, idTokenValidator, nonceRepo)
 	teams := services.NewTeamsService(db)
 	songs := services.NewSongsService(db, auth, teams)
 	liturgy := services.NewLiturgyService(repos.NewMemoryLiturgyRepo())

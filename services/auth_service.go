@@ -14,6 +14,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/hejmsdz/goslides/common"
 	"github.com/hejmsdz/goslides/models"
+	"github.com/hejmsdz/goslides/repos"
 	"gorm.io/gorm"
 )
 
@@ -21,13 +22,14 @@ type AuthService struct {
 	db                   *gorm.DB
 	users                *UsersService
 	idTokenValidator     IDTokenValidator
+	nonceRepo            repos.NonceRepo
 	jwtKey               []byte
 	jwtSigningMethod     jwt.SigningMethod
 	accessTokenDuration  time.Duration
 	refreshTokenDuration time.Duration
 }
 
-func NewAuthService(db *gorm.DB, users *UsersService, idTokenValidator IDTokenValidator) *AuthService {
+func NewAuthService(db *gorm.DB, users *UsersService, idTokenValidator IDTokenValidator, nonceRepo repos.NonceRepo) *AuthService {
 	jwtKey, err := hex.DecodeString(os.Getenv("JWT_KEY"))
 
 	if err != nil {
@@ -54,6 +56,7 @@ func NewAuthService(db *gorm.DB, users *UsersService, idTokenValidator IDTokenVa
 		jwtKey:               jwtKey,
 		jwtSigningMethod:     jwt.SigningMethodHS256,
 		idTokenValidator:     idTokenValidator,
+		nonceRepo:            nonceRepo,
 		accessTokenDuration:  accessTokenDuration,
 		refreshTokenDuration: refreshTokenDuration,
 	}
@@ -174,27 +177,36 @@ func (s *AuthService) DeleteRefreshToken(tokenString string) error {
 	return result.Error
 }
 
+const nonceLength = 32
+const nonceValidity = time.Duration(time.Second * 30)
+
 func (s *AuthService) GenerateNonce(user *models.User) (string, error) {
-	nonce := models.NewNonce(user.ID)
-	result := s.db.Create(&nonce)
-	if result.Error != nil {
-		fmt.Println(result.Error)
-		return "", result.Error
+	token, err := common.GetSecureRandomString(nonceLength)
+	if err != nil {
+		return "", err
 	}
 
-	return nonce.Token, nil
+	err = s.nonceRepo.CreateNonce(token, user.ID, nonceValidity)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
 }
 
 func (s *AuthService) GetUserFromNonce(token string) (*models.User, error) {
-	var nonce models.Nonce
-	result := s.db.Preload("User").Where("token = ? AND expires_at > current_timestamp", token).Take(&nonce)
-	if result.Error != nil {
-		return nil, common.NewAPIError(http.StatusUnauthorized, "invalid nonce", result.Error)
+	userID, err := s.nonceRepo.GetUserIdFromNonce(token)
+	if err != nil {
+		return nil, err
 	}
 
-	s.db.Delete(&nonce)
+	var user *models.User
+	result := s.db.Where("id = ?", userID).Take(&user)
+	if result.Error != nil {
+		return nil, errors.New("user not found")
+	}
 
-	return nonce.User, nil
+	return user, nil
 }
 
 func (s *AuthService) UserBelongsToTeam(user *models.User, teamID uint) bool {
