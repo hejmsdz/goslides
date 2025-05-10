@@ -28,8 +28,8 @@ func NewRedisLiveRepo(redisClient *redis.Client) *RedisLiveRepo {
 	repo := &RedisLiveRepo{
 		redis:            redisClient,
 		ctx:              ctx,
-		dataKeyPrefix:    "live_session_data:",
-		channelKeyPrefix: "live_session_channel:",
+		dataKeyPrefix:    "liveSessionData:",
+		channelKeyPrefix: "liveSessionChannel:",
 		createSessionScript: redis.NewScript(`
 local prefix = ARGV[1]
 local field_data = {}

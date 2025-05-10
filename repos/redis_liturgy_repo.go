@@ -25,7 +25,7 @@ func (r *RedisLiturgyRepo) GetDay(date string) (dtos.LiturgyItems, bool) {
 
 	liturgy.Psalm = items["psalm"]
 	liturgy.Acclamation = items["acclamation"]
-	liturgy.AcclamationVerse = items["acclamation_verse"]
+	liturgy.AcclamationVerse = items["acclamationVerse"]
 
 	return liturgy, true
 }
@@ -36,7 +36,7 @@ func (r *RedisLiturgyRepo) StoreDay(date string, liturgy dtos.LiturgyItems) erro
 	err := r.redis.HSet(context.Background(), r.getKey(date),
 		"psalm", liturgy.Psalm,
 		"acclamation", liturgy.Acclamation,
-		"acclamation_verse", liturgy.AcclamationVerse,
+		"acclamationVerse", liturgy.AcclamationVerse,
 	).Err()
 	if err != nil {
 		return err
