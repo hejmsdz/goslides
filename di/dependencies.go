@@ -26,13 +26,14 @@ func NewContainer(db *gorm.DB, redis *redis.Client) *Container {
 	songs := services.NewSongsService(db, auth, teams)
 	liturgyRepo := repos.NewRedisLiturgyRepo(redis)
 	liturgy := services.NewLiturgyService(liturgyRepo)
+	liveRepo := repos.NewRedisLiveRepo(redis)
 
 	return &Container{
 		DB:      db,
 		Auth:    auth,
 		Songs:   songs,
 		Liturgy: liturgy,
-		Live:    services.NewLiveService(songs, liturgy),
+		Live:    services.NewLiveService(songs, liturgy, liveRepo),
 		Users:   users,
 		Teams:   teams,
 	}
@@ -51,7 +52,7 @@ func NewTestContainer(db *gorm.DB) *Container {
 		Auth:    auth,
 		Songs:   songs,
 		Liturgy: liturgy,
-		Live:    services.NewLiveService(songs, liturgy),
+		Live:    services.NewLiveService(songs, liturgy, repos.NewMemoryLiveRepo()),
 		Users:   users,
 		Teams:   teams,
 	}
