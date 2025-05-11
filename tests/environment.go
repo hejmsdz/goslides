@@ -34,6 +34,8 @@ type TestCaseEnvironment struct {
 
 func (e *TestEnvironment) Run(description string, testFunc func(t *testing.T, tce *TestCaseEnvironment)) {
 	e.T.Run(description, func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+
 		tx := e.DB.Begin()
 		if tx.Error != nil {
 			t.Fatalf("Failed to begin transaction: %v", tx.Error)
