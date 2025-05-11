@@ -4,7 +4,7 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
-	"math/rand/v2"
+	"os"
 	"regexp"
 	"time"
 
@@ -13,37 +13,39 @@ import (
 	"github.com/hejmsdz/goslides/core"
 	"github.com/hejmsdz/goslides/dtos"
 	"github.com/hejmsdz/goslides/models"
+	"github.com/hejmsdz/goslides/repos"
 )
 
 type LiveService struct {
-	sessions map[string]*LiveSession
-	Songs    *SongsService
-	Liturgy  *LiturgyService
+	repo            repos.LiveSessionRepo
+	Songs           *SongsService
+	Liturgy         *LiturgyService
+	maxIdleDuration time.Duration
 }
 
-type MemberChannel chan dtos.Event
+type MemberChannel chan *dtos.Event
 
-type LiveSession struct {
-	URL             string `json:"url"`
-	CurrentPage     int    `json:"currentPage"`
-	Token           string `json:"-"`
-	fileName        string
-	members         []MemberChannel
-	expirationTimer *time.Timer
-}
+func NewLiveService(songs *SongsService, liturgy *LiturgyService, repo repos.LiveSessionRepo) *LiveService {
+	maxIdleDuration, err := time.ParseDuration(os.Getenv("LIVE_SESSION_MAX_IDLE_DURATION"))
+	if err != nil {
+		panic(fmt.Sprintf("failed to read LIVE_SESSION_MAX_IDLE_DURATION: %s", err.Error()))
+	}
 
-func NewLiveService(songs *SongsService, liturgy *LiturgyService) *LiveService {
 	return &LiveService{
-		sessions: make(map[string]*LiveSession),
-		Songs:    songs,
-		Liturgy:  liturgy,
+		repo:            repo,
+		Songs:           songs,
+		Liturgy:         liturgy,
+		maxIdleDuration: maxIdleDuration,
 	}
 }
 
-func (l *LiveService) GetSession(key string) (*LiveSession, bool) {
-	session, ok := l.sessions[key]
+func (l *LiveService) GetSession(key string) (*models.LiveSession, bool) {
+	session, err := l.repo.GetSession(key)
+	if err != nil {
+		return nil, false
+	}
 
-	return session, ok
+	return session, true
 }
 
 func (l *LiveService) ValidateToken(key string, token string) bool {
@@ -64,15 +66,6 @@ func (l *LiveService) ValidateLiveSessionKey(key string) bool {
 	return sessionKeyRegexp.MatchString(key)
 }
 
-func (l *LiveService) GenerateLiveSessionKey() string {
-	for {
-		key := fmt.Sprintf("%04d", rand.IntN(10000))
-		if _, ok := l.sessions[key]; !ok {
-			return key
-		}
-	}
-}
-
 func (l *LiveService) GenerateLiveSessionDeck(input dtos.LiveSessionRequest, user *models.User) (string, error) {
 	textDeck, ok := BuildTextSlides(input.Deck, l.Songs, l.Liturgy, user)
 	if !ok {
@@ -88,59 +81,52 @@ func (l *LiveService) GenerateLiveSessionDeck(input dtos.LiveSessionRequest, use
 	return fileName, common.SavePublicFile(file, fileName)
 }
 
-func (l *LiveService) CreateSession(key string, input dtos.LiveSessionRequest, user *models.User) (*LiveSession, error) {
+func (l *LiveService) CreateSession(input dtos.LiveSessionRequest, user *models.User) (string, *models.LiveSession, error) {
 	fileName, err := l.GenerateLiveSessionDeck(input, user)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
 	token, err := common.GetSecureRandomString(16)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
-	session := &LiveSession{
+	session := &models.LiveSession{
 		URL:         common.GetPublicURL(fileName),
 		CurrentPage: input.CurrentPage,
 		Token:       token,
-		fileName:    fileName,
-		members:     make([]MemberChannel, 0),
+		FileName:    fileName,
+		UpdatedAt:   time.Now(),
 	}
 
-	l.sessions[key] = session
-	l.ExtendSessionTime(key)
+	key, err := l.repo.CreateSession(session)
+	if err != nil {
+		return "", nil, err
+	}
 
-	return session, nil
+	return key, session, nil
 }
 
-func (l *LiveService) ExtendSessionTime(key string) {
+func (l *LiveService) DeleteSession(key string) error {
 	session, ok := l.GetSession(key)
 	if !ok {
-		return
+		return errors.New("session not found")
 	}
 
-	if session.expirationTimer != nil {
-		session.expirationTimer.Stop()
-	}
-
-	session.expirationTimer = time.AfterFunc(2*time.Hour, func() {
-		l.DeleteSession(key)
+	l.repo.PublishEvent(key, &dtos.Event{
+		Type: "delete",
+		Data: dtos.JsonObject{},
 	})
-}
 
-func (l *LiveService) DeleteSession(key string) {
-	session, ok := l.GetSession(key)
-	if !ok {
-		return
+	err := l.repo.DeleteSession(key)
+	if err != nil {
+		return err
 	}
 
-	for _, member := range session.members {
-		close(member)
-	}
+	common.DeletePublicFile(session.FileName)
 
-	common.DeletePublicFile(session.fileName)
-
-	delete(l.sessions, key)
+	return nil
 }
 
 func (l *LiveService) UpdateSession(key string, input dtos.LiveSessionRequest, user *models.User) error {
@@ -154,54 +140,51 @@ func (l *LiveService) UpdateSession(key string, input dtos.LiveSessionRequest, u
 		return err
 	}
 
-	common.DeletePublicFile(session.fileName)
+	common.DeletePublicFile(session.FileName)
 
-	session.fileName = fileName
+	session.FileName = fileName
 	session.URL = common.GetPublicURL(fileName)
 	session.CurrentPage = input.CurrentPage
+	session.UpdatedAt = time.Now()
 
-	for _, member := range session.members {
-		member <- dtos.Event{
-			Type: "start",
-			Data: dtos.JsonObject{
-				"url":         session.URL,
-				"currentPage": session.CurrentPage,
-			},
-		}
+	err = l.repo.UpdateSession(key, session)
+	if err != nil {
+		return err
 	}
+
+	l.repo.PublishEvent(key, &dtos.Event{
+		Type: "start",
+		Data: dtos.JsonObject{
+			"url":         session.URL,
+			"currentPage": session.CurrentPage,
+		},
+	})
 
 	return nil
 }
 
 func (l *LiveService) ChangeSessionPage(key string, currentPage int) {
-	session, ok := l.GetSession(key)
-	if !ok {
-		return
-	}
-
-	session.CurrentPage = currentPage
-
-	for _, member := range session.members {
-		member <- dtos.Event{
-			Type: "changePage",
-			Data: dtos.JsonObject{"page": currentPage},
-		}
-	}
+	l.repo.ChangeSessionPage(key, currentPage)
+	l.repo.PublishEvent(key, &dtos.Event{
+		Type: "changePage",
+		Data: dtos.JsonObject{"page": currentPage},
+	})
 }
 
-func (ls *LiveSession) AddMember() MemberChannel {
-	memberChannel := make(MemberChannel)
-	ls.members = append(ls.members, memberChannel)
-
-	return memberChannel
+func (l *LiveService) Subscribe(key string) (MemberChannel, func(), error) {
+	return l.repo.Subscribe(key)
 }
 
-func (ls *LiveSession) RemoveMember(memberChannel MemberChannel) {
-	close(memberChannel)
-
-	for i, v := range ls.members {
-		if v == memberChannel {
-			ls.members = append(ls.members[:i], ls.members[i+1:]...)
-		}
+func (l *LiveService) CleanUp() int {
+	minUpdatedAt := time.Now().Add(-1 * l.maxIdleDuration)
+	filenames, err := l.repo.CleanUp(minUpdatedAt)
+	if err != nil {
+		return 0
 	}
+
+	for _, filename := range filenames {
+		common.DeletePublicFile(filename)
+	}
+
+	return len(filenames)
 }

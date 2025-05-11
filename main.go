@@ -5,15 +5,28 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/hejmsdz/goslides/app"
 	"github.com/hejmsdz/goslides/database"
 	"github.com/hejmsdz/goslides/di"
 )
 
+func startPeriodicTasks(container *di.Container) {
+	ticker := time.NewTicker(30 * time.Minute)
+	go func() {
+		for range ticker.C {
+			cleanedUpSessions := container.Live.CleanUp()
+			log.Printf("Cleaned up %d idle sessions", cleanedUpSessions)
+		}
+	}()
+}
+
 func main() {
 	db := database.InitializeDB(os.Getenv("DATABASE"))
-	container := di.NewContainer(db)
+	redis := database.InitializeRedis(os.Getenv("REDIS"))
+	container := di.NewContainer(db, redis)
+	startPeriodicTasks(container)
 
 	app := app.NewApp(container)
 	srv := &http.Server{

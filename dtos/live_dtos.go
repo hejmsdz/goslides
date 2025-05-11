@@ -2,9 +2,9 @@ package dtos
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/hejmsdz/goslides/common"
+	"github.com/hejmsdz/goslides/models"
 )
 
 type JsonObject map[string]interface{}
@@ -14,20 +14,18 @@ type Event struct {
 	Data JsonObject
 }
 
-type LiveSessionDTO struct {
+type LiveSessionRequest struct {
 	Deck        DeckRequest `json:"deck"`
 	CurrentPage int         `json:"currentPage"`
 }
 
-func (ls LiveSessionDTO) Validate() error {
+func (ls LiveSessionRequest) Validate() error {
 	if ls.CurrentPage < 0 {
 		return errors.New("invalid current page")
 	}
 
 	return ls.Deck.Validate()
 }
-
-type LiveSessionRequest = LiveSessionDTO
 
 type LiveSessionResponse struct {
 	ID    string `json:"id"`
@@ -38,7 +36,19 @@ type LiveSessionResponse struct {
 func NewLiveSessionResponse(id string, token string) LiveSessionResponse {
 	return LiveSessionResponse{
 		ID:    id,
-		URL:   common.GetFrontendURL(fmt.Sprintf("%s", id)),
+		URL:   common.GetFrontendURL(id),
 		Token: token,
+	}
+}
+
+type LiveSessionStatusResponse struct {
+	URL         string `json:"url"`
+	CurrentPage int    `json:"currentPage"`
+}
+
+func NewLiveSessionStatusResponse(session *models.LiveSession) LiveSessionStatusResponse {
+	return LiveSessionStatusResponse{
+		URL:         session.URL,
+		CurrentPage: session.CurrentPage,
 	}
 }

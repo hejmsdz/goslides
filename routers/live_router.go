@@ -52,8 +52,7 @@ func (h *LiveHandler) PostLive(c *gin.Context) {
 		return
 	}
 
-	key := h.Live.GenerateLiveSessionKey()
-	session, err := h.Live.CreateSession(key, input, user)
+	key, session, err := h.Live.CreateSession(input, user)
 	if err != nil {
 		common.ReturnError(c, err)
 		return
@@ -87,7 +86,6 @@ func (h *LiveHandler) PutLive(c *gin.Context) {
 		}
 
 		h.Live.UpdateSession(key, input, user)
-		h.Live.ExtendSessionTime(key)
 
 		resp := dtos.NewLiveSessionResponse(key, prevSession.Token)
 		c.JSON(http.StatusOK, resp)
@@ -96,7 +94,7 @@ func (h *LiveHandler) PutLive(c *gin.Context) {
 			common.ReturnAPIError(c, http.StatusUnprocessableEntity, "invalid live session key", nil)
 			return
 		}
-		session, err := h.Live.CreateSession(key, input, user)
+		key, session, err := h.Live.CreateSession(input, user)
 		if err != nil {
 			common.ReturnError(c, err)
 			return
@@ -122,11 +120,15 @@ func (h *LiveHandler) GetLive(c *gin.Context) {
 	headers.Set("Connection", "keep-alive")
 	headers.Set("Transfer-Encoding", "chunked")
 
-	stream := ls.AddMember()
+	stream, unsubscribe, err := h.Live.Subscribe(key)
+	if err != nil {
+		common.ReturnError(c, err)
+		return
+	}
 
 	c.Stream(func(w io.Writer) bool {
 		fmt.Fprintf(w, "retry: 5000\n\n")
-		c.SSEvent("start", ls)
+		c.SSEvent("start", dtos.NewLiveSessionStatusResponse(ls))
 
 		return false
 	})
@@ -140,13 +142,18 @@ func (h *LiveHandler) GetLive(c *gin.Context) {
 			}
 
 			c.SSEvent(event.Type, event.Data)
+
+			if event.Type == "delete" {
+				return false
+			}
+
 			return true
 		case <-keepAliveTicker.C:
 			c.SSEvent("keepAlive", "")
 			return true
 		case <-c.Request.Context().Done():
 			keepAliveTicker.Stop()
-			ls.RemoveMember(stream)
+			unsubscribe()
 			return false
 		}
 	})
@@ -161,7 +168,7 @@ func (h *LiveHandler) GetLiveStatus(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, session)
+	c.JSON(http.StatusOK, dtos.NewLiveSessionStatusResponse(session))
 }
 
 func (h *LiveHandler) DeleteLive(c *gin.Context) {
@@ -205,7 +212,6 @@ func (h *LiveHandler) PostLivePage(c *gin.Context) {
 	}
 
 	h.Live.ChangeSessionPage(key, page)
-	h.Live.ExtendSessionTime(key)
 
 	c.Status(http.StatusNoContent)
 }
