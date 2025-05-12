@@ -22,16 +22,14 @@ func RegisterDeckRoutes(r gin.IRouter, dic *di.Container) {
 }
 
 type DeckHandler struct {
-	Songs   *services.SongsService
-	Liturgy *services.LiturgyService
-	Auth    *services.AuthService
+	Deck *services.DeckService
+	Auth *services.AuthService
 }
 
 func NewDeckHandler(dic *di.Container) *DeckHandler {
 	return &DeckHandler{
-		Songs:   dic.Songs,
-		Liturgy: dic.Liturgy,
-		Auth:    dic.Auth,
+		Deck: dic.Deck,
+		Auth: dic.Auth,
 	}
 }
 
@@ -49,11 +47,13 @@ func (h *DeckHandler) PostDeck(c *gin.Context) {
 
 	user := h.Auth.GetCurrentUser(c)
 
-	textDeck, ok := services.BuildTextSlides(deck, h.Songs, h.Liturgy, user)
+	textDeck, ok := h.Deck.BuildTextSlides(deck, user)
 	if !ok {
 		common.ReturnAPIError(c, http.StatusInternalServerError, "failed to get lyrics", nil)
 		return
 	}
+
+	pageConfig := h.Deck.GetPageConfig(deck)
 
 	extension := ""
 	var file io.Reader
@@ -68,7 +68,7 @@ func (h *DeckHandler) PostDeck(c *gin.Context) {
 
 	default:
 		extension = ".pdf"
-		file, contents, err = core.BuildPDF(textDeck, services.GetPageConfig(deck))
+		file, contents, err = core.BuildPDF(textDeck, pageConfig)
 		if err != nil {
 			common.ReturnError(c, err)
 			return

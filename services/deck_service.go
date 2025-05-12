@@ -9,7 +9,16 @@ import (
 	"github.com/hejmsdz/goslides/models"
 )
 
-func GetPageConfig(d dtos.DeckRequest) core.PageConfig {
+type DeckService struct {
+	songs   *SongsService
+	liturgy *LiturgyService
+}
+
+func NewDeckService(songs *SongsService, liturgy *LiturgyService) *DeckService {
+	return &DeckService{songs: songs, liturgy: liturgy}
+}
+
+func (s *DeckService) GetPageConfig(d dtos.DeckRequest) core.PageConfig {
 	ratio := 16.0 / 9.0
 	fontSize := 52
 
@@ -39,7 +48,7 @@ func GetPageConfig(d dtos.DeckRequest) core.PageConfig {
 const PSALM = "PSALM"
 const ACCLAMATION = "ACCLAMATION"
 
-func BuildTextSlides(d dtos.DeckRequest, songsService *SongsService, liturgyService *LiturgyService, user *models.User) ([][]string, bool) {
+func (s *DeckService) BuildTextSlides(d dtos.DeckRequest, user *models.User) ([][]string, bool) {
 	hasLiturgy := false
 	for _, item := range d.Items {
 		if item.Type == PSALM || item.Type == ACCLAMATION {
@@ -50,13 +59,13 @@ func BuildTextSlides(d dtos.DeckRequest, songsService *SongsService, liturgyServ
 	var liturgy dtos.LiturgyItems
 	liturgyOk := true
 	if hasLiturgy {
-		liturgy, liturgyOk = liturgyService.GetDay(d.Date)
+		liturgy, liturgyOk = s.liturgy.GetDay(d.Date)
 	}
 
 	slides := make([][]string, 0)
 	for _, item := range d.Items {
 		if item.ID != "" {
-			song, err := songsService.GetSong(item.ID, user)
+			song, err := s.songs.GetSong(item.ID, user)
 			if err != nil {
 				return slides, false
 			}

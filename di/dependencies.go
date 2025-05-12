@@ -12,6 +12,7 @@ type Container struct {
 	Auth    *services.AuthService
 	Songs   *services.SongsService
 	Liturgy *services.LiturgyService
+	Deck    *services.DeckService
 	Live    *services.LiveService
 	Users   *services.UsersService
 	Teams   *services.TeamsService
@@ -28,13 +29,15 @@ func NewContainer(db *gorm.DB, redis *redis.Client) *Container {
 	liturgyRepo := repos.NewRedisLiturgyRepo(redis)
 	liturgy := services.NewLiturgyService(liturgyRepo)
 	liveRepo := repos.NewRedisLiveRepo(redis)
+	deck := services.NewDeckService(songs, liturgy)
 
 	return &Container{
 		DB:      db,
 		Auth:    auth,
 		Songs:   songs,
 		Liturgy: liturgy,
-		Live:    services.NewLiveService(songs, liturgy, liveRepo),
+		Deck:    deck,
+		Live:    services.NewLiveService(songs, liturgy, deck, liveRepo),
 		Users:   users,
 		Teams:   teams,
 	}
@@ -48,13 +51,15 @@ func NewTestContainer(db *gorm.DB) *Container {
 	teams := services.NewTeamsService(db)
 	songs := services.NewSongsService(db, auth, teams)
 	liturgy := services.NewLiturgyService(repos.NewMemoryLiturgyRepo())
+	deck := services.NewDeckService(songs, liturgy)
 
 	return &Container{
 		DB:      db,
 		Auth:    auth,
 		Songs:   songs,
 		Liturgy: liturgy,
-		Live:    services.NewLiveService(songs, liturgy, repos.NewMemoryLiveRepo()),
+		Deck:    deck,
+		Live:    services.NewLiveService(songs, liturgy, deck, repos.NewMemoryLiveRepo()),
 		Users:   users,
 		Teams:   teams,
 	}
