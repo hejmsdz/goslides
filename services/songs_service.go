@@ -41,31 +41,73 @@ func (s SongsService) GetSong(uuidString string, user *models.User) (*models.Son
 	return &song, nil
 }
 
-func (s SongsService) FilterSongs(query string, user *models.User, teamUUID string) []models.Song {
+func (s SongsService) getSongsQuery(query string, teamID uint) (*gorm.DB, error) {
 	querySlug := common.Slugify(query)
 
-	var songs []models.Song
-
-	db := s.db
-	if teamUUID == "" {
-		db = s.db.Where("team_id IS NULL")
+	db := s.db.Debug().Model(&models.Song{})
+	if teamID == 0 {
+		db = db.Where("team_id IS NULL")
 	} else {
-		team, err := s.teams.GetUserTeam(user, teamUUID)
-		if err != nil {
-			return songs
-		}
-
-		db = db.Joins("LEFT JOIN songs AS overrides ON overrides.overridden_song_id = songs.id AND overrides.team_id = ? AND overrides.deleted_at IS NULL", team.ID).
-			Where("songs.team_id = ? OR (songs.team_id IS NULL AND overrides.id IS NULL)", team.ID)
+		db = db.Joins("LEFT JOIN songs AS overrides ON overrides.overridden_song_id = songs.id AND overrides.team_id = ? AND overrides.deleted_at IS NULL", teamID).
+			Where("songs.team_id = ? OR (songs.team_id IS NULL AND overrides.id IS NULL)", teamID)
 	}
 
-	db.Preload("Team").
-		Omit("lyrics").
-		Where("songs.slug LIKE ?", "%"+querySlug+"%").
-		Order("title ASC, subtitle ASC").
-		Find(&songs)
+	if query != "" {
+		db = db.Where("songs.slug LIKE ?", "%"+querySlug+"%")
+	}
 
-	return songs
+	db = db.Preload("Team").
+		Omit("lyrics").
+		Order("title ASC, subtitle ASC")
+
+	return db, nil
+}
+
+func (s SongsService) FilterSongsPaginated(query string, user *models.User, teamUUID string, limit int, offset int) ([]models.Song, int64, error) {
+	var songs []models.Song
+	var teamID uint = 0
+
+	if teamUUID != "" {
+		team, err := s.teams.GetUserTeam(user, teamUUID)
+		if err != nil {
+			return songs, 0, nil
+		} else {
+			teamID = team.ID
+		}
+	}
+
+	db, err := s.getSongsQuery(query, teamID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if limit > 0 && offset >= 0 {
+		err = db.Offset(offset).Limit(limit).Find(&songs).Error
+	} else {
+		err = db.Find(&songs).Error
+	}
+
+	if err != nil {
+		return songs, 0, err
+	}
+
+	var total int64
+	db, err = s.getSongsQuery(query, teamID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	err = db.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return songs, total, nil
+}
+
+func (s SongsService) FilterSongs(query string, user *models.User, teamUUID string) ([]models.Song, error) {
+	songs, _, err := s.FilterSongsPaginated(query, user, teamUUID, -1, -1)
+	return songs, err
 }
 
 func (s SongsService) CreateSong(input dtos.SongRequest, user *models.User) (*models.Song, error) {

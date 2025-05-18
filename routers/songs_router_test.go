@@ -277,7 +277,8 @@ func TestSongsRouter(t *testing.T) {
 		}, token)
 
 		assert.Equal(t, 200, w.Code)
-		songs := tce.Container.Songs.FilterSongs("ubi", testData.users["user2"], testData.teams["roch"].UUID.String())
+		songs, err := tce.Container.Songs.FilterSongs("ubi", testData.users["user2"], testData.teams["roch"].UUID.String())
+		assert.NoError(t, err)
 		assert.Len(t, songs, 1)
 		assert.Equal(t, "Ubi caritas (customized)", songs[0].Title)
 		assert.Equal(t, "Ubi caritas (customized)", resp.Title)

@@ -2,6 +2,7 @@ package routers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hejmsdz/goslides/common"
@@ -33,14 +34,45 @@ func NewSongsHandler(dic *di.Container) *SongsHandler {
 	return &SongsHandler{dic.Songs, dic.Auth}
 }
 
+func parsePaginationParams(limitStr string, offsetStr string) (int, int, error) {
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return limit, offset, nil
+}
+
 func (h *SongsHandler) GetSongs(c *gin.Context) {
 	query := c.Query("query")
 	teamUUID := c.Query("teamId")
-	user := h.Auth.GetCurrentUser(c)
-	songs := h.Songs.FilterSongs(query, user, teamUUID)
 
-	resp := dtos.NewSongListResponse(songs)
-	c.JSON(http.StatusOK, resp)
+	user := h.Auth.GetCurrentUser(c)
+
+	if limit, offset, err := parsePaginationParams(c.Query("limit"), c.Query("offset")); err == nil {
+		songs, total, err := h.Songs.FilterSongsPaginated(query, user, teamUUID, limit, offset)
+		if err != nil {
+			common.ReturnAPIError(c, http.StatusInternalServerError, "failed to get songs", err)
+			return
+		}
+
+		resp := dtos.NewPaginatedSongListResponse(songs, total)
+		c.JSON(http.StatusOK, resp)
+	} else {
+		songs, err := h.Songs.FilterSongs(query, user, teamUUID)
+		if err != nil {
+			common.ReturnAPIError(c, http.StatusInternalServerError, "failed to get songs", err)
+			return
+		}
+
+		resp := dtos.NewSongListResponse(songs)
+		c.JSON(http.StatusOK, resp)
+	}
 }
 
 func (h *SongsHandler) PostSong(c *gin.Context) {

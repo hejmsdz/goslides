@@ -47,6 +47,18 @@ func NewSongListResponse(songs []models.Song) []SongSummaryResponse {
 	return resp
 }
 
+type PaginatedSongListResponse struct {
+	Items []SongSummaryResponse `json:"items"`
+	Total int64                 `json:"total"`
+}
+
+func NewPaginatedSongListResponse(songs []models.Song, total int64) PaginatedSongListResponse {
+	return PaginatedSongListResponse{
+		Items: NewSongListResponse(songs),
+		Total: total,
+	}
+}
+
 type SongDetailResponse struct {
 	SongSummaryResponse
 	OverriddenSongID *string  `json:"overriddenSongId"`
