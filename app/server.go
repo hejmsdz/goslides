@@ -2,6 +2,7 @@ package app
 
 import (
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/gin-contrib/cors"
@@ -17,7 +18,16 @@ func newCorsMiddleware(frontendURL string) gin.HandlerFunc {
 		if origin == frontendURL {
 			return true
 		}
-		return strings.HasPrefix(origin, "http://localhost:")
+
+		if strings.HasPrefix(origin, "http://localhost:") {
+			return true
+		}
+
+		if isInternalIP, _ := regexp.MatchString(`^http://192\.168\.\d{1,3}\.\d{1,3}:`, origin); isInternalIP {
+			return true
+		}
+
+		return false
 	}
 
 	return cors.New(config)
