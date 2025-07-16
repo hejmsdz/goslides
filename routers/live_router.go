@@ -48,7 +48,7 @@ func (h *LiveHandler) PostLive(c *gin.Context) {
 	}
 
 	if err := input.Validate(); err != nil {
-		common.ReturnAPIError(c, http.StatusUnprocessableEntity, "validation failed", err)
+		common.ReturnAPIError(c, http.StatusUnprocessableEntity, err.Error(), err)
 		return
 	}
 

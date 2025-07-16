@@ -4,6 +4,7 @@ import (
 	"errors"
 	"regexp"
 
+	"github.com/hejmsdz/goslides/common"
 	"github.com/hejmsdz/goslides/core"
 )
 
@@ -42,6 +43,10 @@ var dateRegexp = regexp.MustCompile(`^20\d\d-[0-1]\d-[0-3]\d$`)
 func (d DeckRequest) Validate() error {
 	if !dateRegexp.MatchString(d.Date) {
 		return errors.New("invalid date")
+	}
+
+	if common.IsPastDate(d.Date) {
+		return errors.New("date must not be in the past")
 	}
 
 	if len(d.Items) == 0 {

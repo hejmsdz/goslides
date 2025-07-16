@@ -41,7 +41,7 @@ func (h *DeckHandler) PostDeck(c *gin.Context) {
 	}
 
 	if err := deck.Validate(); err != nil {
-		common.ReturnAPIError(c, http.StatusUnprocessableEntity, "validation failed", err)
+		common.ReturnAPIError(c, http.StatusUnprocessableEntity, err.Error(), err)
 		return
 	}
 

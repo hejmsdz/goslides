@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/andybalholm/cascadia"
+	"github.com/hejmsdz/goslides/common"
 	"github.com/hejmsdz/goslides/dtos"
 	"github.com/hejmsdz/goslides/repos"
 	"golang.org/x/net/html"
@@ -117,6 +118,10 @@ func NewLiturgyService(repo repos.LiturgyRepo) *LiturgyService {
 }
 
 func (l *LiturgyService) GetDay(date string) (dtos.LiturgyItems, bool) {
+	if common.IsPastDate(date) {
+		return dtos.LiturgyItems{}, false
+	}
+
 	liturgy, ok := l.repo.GetDay(date)
 	if ok {
 		return liturgy, true

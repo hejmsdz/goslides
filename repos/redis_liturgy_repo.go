@@ -3,6 +3,7 @@ package repos
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hejmsdz/goslides/dtos"
 	"github.com/redis/go-redis/v9"
@@ -31,9 +32,8 @@ func (r *RedisLiturgyRepo) GetDay(date string) (dtos.LiturgyItems, bool) {
 }
 
 func (r *RedisLiturgyRepo) StoreDay(date string, liturgy dtos.LiturgyItems) error {
-	fmt.Printf("storing %s %+v\n", r.getKey(date), liturgy)
-
-	err := r.redis.HSet(context.Background(), r.getKey(date),
+	key := r.getKey(date)
+	err := r.redis.HSet(context.Background(), key,
 		"psalm", liturgy.Psalm,
 		"acclamation", liturgy.Acclamation,
 		"acclamationVerse", liturgy.AcclamationVerse,
@@ -42,7 +42,19 @@ func (r *RedisLiturgyRepo) StoreDay(date string, liturgy dtos.LiturgyItems) erro
 		return err
 	}
 
+	r.redis.ExpireAt(context.Background(), key, r.getExpirationTime(date)).Err()
+
 	return nil
+}
+
+func (r *RedisLiturgyRepo) getExpirationTime(date string) time.Time {
+	parsedDate, err := time.ParseInLocation("2006-01-02", date, time.Local)
+
+	if err != nil {
+		return time.Now().Add(24 * time.Hour)
+	}
+
+	return parsedDate.Add(24 * time.Hour)
 }
 
 func NewRedisLiturgyRepo(redis *redis.Client) *RedisLiturgyRepo {
