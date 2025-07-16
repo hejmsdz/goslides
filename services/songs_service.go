@@ -194,7 +194,7 @@ func (s SongsService) OverrideSong(id string, input dtos.SongRequest, user *mode
 
 	var count int64
 	s.db.Model(&models.Song{}).
-		Where("overriden_song_id = ?", song.ID).
+		Where("overridden_song_id = ?", song.ID).
 		Where("team_id = ?", team.ID).
 		Count(&count)
 
