@@ -135,6 +135,10 @@ func (s SongsService) CreateSong(input dtos.SongRequest, user *models.User) (*mo
 		song.TeamID = &team.ID
 	}
 
+	if user.IsAdmin {
+		song.IsUnofficial = input.IsUnofficial
+	}
+
 	if !s.auth.Can(user, "create", song) {
 		return nil, common.NewAPIError(403, "forbidden", nil)
 	}
@@ -173,6 +177,10 @@ func (s SongsService) UpdateSong(id string, input dtos.SongRequest, user *models
 	} else {
 		song.Team = newTeam
 		song.TeamID = &(newTeam.ID)
+	}
+
+	if user.IsAdmin {
+		song.IsUnofficial = input.IsUnofficial
 	}
 
 	err = s.db.Save(&song).Error

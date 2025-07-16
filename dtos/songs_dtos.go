@@ -7,12 +7,13 @@ import (
 )
 
 type SongSummaryResponse struct {
-	ID         string  `json:"id"`
-	Title      string  `json:"title"`
-	Subtitle   *string `json:"subtitle"`
-	Slug       string  `json:"slug"`
-	TeamID     *string `json:"teamId"`
-	IsOverride bool    `json:"isOverride"`
+	ID           string  `json:"id"`
+	Title        string  `json:"title"`
+	Subtitle     *string `json:"subtitle"`
+	Slug         string  `json:"slug"`
+	TeamID       *string `json:"teamId"`
+	IsOverride   bool    `json:"isOverride"`
+	IsUnofficial bool    `json:"isUnofficial,omitempty"`
 }
 
 func NewSongSummaryResponse(song *models.Song) SongSummaryResponse {
@@ -22,11 +23,12 @@ func NewSongSummaryResponse(song *models.Song) SongSummaryResponse {
 	}
 
 	resp := SongSummaryResponse{
-		ID:         song.UUID.String(),
-		Title:      song.Title,
-		Subtitle:   subtitle,
-		Slug:       song.Slug,
-		IsOverride: song.OverriddenSongID != nil,
+		ID:           song.UUID.String(),
+		Title:        song.Title,
+		Subtitle:     subtitle,
+		Slug:         song.Slug,
+		IsOverride:   song.OverriddenSongID != nil,
+		IsUnofficial: song.IsUnofficial,
 	}
 
 	if song.Team != nil {
@@ -86,11 +88,12 @@ func NewSongDetailResponse(song *models.Song, canEdit bool, canDelete bool, canO
 }
 
 type SongRequest struct {
-	Title      string   `json:"title"`
-	Subtitle   string   `json:"subtitle"`
-	Lyrics     []string `json:"lyrics"`
-	TeamID     string   `json:"teamId"`
-	IsOverride bool     `json:"isOverride"`
+	Title        string   `json:"title"`
+	Subtitle     string   `json:"subtitle"`
+	Lyrics       []string `json:"lyrics"`
+	TeamID       string   `json:"teamId"`
+	IsOverride   bool     `json:"isOverride"`
+	IsUnofficial bool     `json:"isUnofficial"`
 }
 
 func (r SongRequest) Validate() error {
@@ -99,5 +102,10 @@ func (r SongRequest) Validate() error {
 			return errors.New("teamId is required when overriding a song")
 		}
 	}
+
+	if r.IsUnofficial && r.TeamID != "" {
+		return errors.New("teamId must be empty when creating an unofficial song")
+	}
+
 	return nil
 }
