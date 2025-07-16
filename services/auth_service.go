@@ -224,6 +224,13 @@ func (s *AuthService) Can(user *models.User, action string, resource *models.Son
 		return true
 	}
 
+	if resource.IsUnofficial {
+		canAccessUnofficialSongs, err := s.users.CanAccessUnofficialSongs(user)
+		if err != nil || !canAccessUnofficialSongs {
+			return false
+		}
+	}
+
 	switch action {
 	case "read":
 		return resource.TeamID == nil || s.UserBelongsToTeam(user, *resource.TeamID)

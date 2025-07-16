@@ -23,6 +23,7 @@ type Song struct {
 	Team             *Team
 	OverriddenSong   *Song
 	OverriddenSongID *uint
+	IsUnofficial     bool
 	CreatedByID      uint  `gorm:"not null"`
 	CreatedBy        *User `gorm:"foreignKey:CreatedByID"`
 	UpdatedByID      uint  `gorm:"not null"`

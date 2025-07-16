@@ -74,3 +74,26 @@ func (s UsersService) DeleteUser(user *models.User) error {
 
 	return nil
 }
+
+func (s UsersService) CanAccessUnofficialSongs(user *models.User) (bool, error) {
+	if user == nil {
+		return false, nil
+	}
+
+	if user.IsAdmin {
+		return true, nil
+	}
+
+	var count int64
+	err := s.db.Table("teams").
+		Joins("INNER JOIN user_teams ON user_teams.team_id = teams.id").
+		Where("user_teams.user_id = ?", user.ID).
+		Where("can_access_unofficial_songs = true").
+		Count(&count).Error
+
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}

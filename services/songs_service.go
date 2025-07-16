@@ -41,7 +41,7 @@ func (s SongsService) GetSong(uuidString string, user *models.User) (*models.Son
 	return &song, nil
 }
 
-func (s SongsService) getSongsQuery(query string, teamID uint) (*gorm.DB, error) {
+func (s SongsService) getSongsQuery(query string, teamID uint, includeUnofficial bool) (*gorm.DB, error) {
 	querySlug := common.Slugify(query)
 
 	db := s.db.Debug().Model(&models.Song{})
@@ -56,6 +56,10 @@ func (s SongsService) getSongsQuery(query string, teamID uint) (*gorm.DB, error)
 		db = db.Where("songs.slug LIKE ?", "%"+querySlug+"%")
 	}
 
+	if !includeUnofficial {
+		db = db.Where("songs.is_unofficial = false")
+	}
+
 	db = db.Preload("Team").
 		Omit("lyrics").
 		Order("title ASC, subtitle ASC")
@@ -66,6 +70,7 @@ func (s SongsService) getSongsQuery(query string, teamID uint) (*gorm.DB, error)
 func (s SongsService) FilterSongsPaginated(query string, user *models.User, teamUUID string, limit int, offset int) ([]models.Song, int64, error) {
 	var songs []models.Song
 	var teamID uint = 0
+	includeUnofficial := false
 
 	if teamUUID != "" {
 		team, err := s.teams.GetUserTeam(user, teamUUID)
@@ -73,10 +78,11 @@ func (s SongsService) FilterSongsPaginated(query string, user *models.User, team
 			return songs, 0, nil
 		} else {
 			teamID = team.ID
+			includeUnofficial = team.CanAccessUnofficialSongs
 		}
 	}
 
-	db, err := s.getSongsQuery(query, teamID)
+	db, err := s.getSongsQuery(query, teamID, includeUnofficial)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -92,7 +98,7 @@ func (s SongsService) FilterSongsPaginated(query string, user *models.User, team
 	}
 
 	var total int64
-	db, err = s.getSongsQuery(query, teamID)
+	db, err = s.getSongsQuery(query, teamID, includeUnofficial)
 	if err != nil {
 		return nil, 0, err
 	}

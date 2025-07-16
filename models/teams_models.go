@@ -10,11 +10,12 @@ import (
 
 type Team struct {
 	gorm.Model
-	UUID        uuid.UUID `gorm:"uniqueIndex"`
-	Name        string
-	CreatedByID uint    `gorm:"not null"`
-	CreatedBy   *User   `gorm:"foreignKey:CreatedByID"`
-	Users       []*User `gorm:"many2many:user_teams;"`
+	UUID                     uuid.UUID `gorm:"uniqueIndex"`
+	Name                     string
+	CreatedByID              uint  `gorm:"not null"`
+	CreatedBy                *User `gorm:"foreignKey:CreatedByID"`
+	CanAccessUnofficialSongs bool
+	Users                    []*User `gorm:"many2many:user_teams;"`
 }
 
 func (t *Team) BeforeSave(tx *gorm.DB) (err error) {
