@@ -55,6 +55,10 @@ func (t *TeamsService) GetUserTeamAllowingEmptyForAdmin(user *models.User, uuid 
 
 func (t *TeamsService) GetUserTeams(user *models.User) ([]*models.Team, error) {
 	var teams []*models.Team
+	if user == nil {
+		return teams, nil
+	}
+
 	err := t.db.Joins("INNER JOIN user_teams ON user_teams.team_id = teams.id").
 		Where("user_teams.user_id = ?", user.ID).
 		Find(&teams).Error
