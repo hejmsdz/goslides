@@ -23,6 +23,7 @@ type Song struct {
 	Team             *Team
 	OverriddenSong   *Song
 	OverriddenSongID *uint
+	Author           sql.NullString
 	IsUnofficial     bool  `gorm:"not null;default:false"`
 	CreatedByID      uint  `gorm:"not null"`
 	CreatedBy        *User `gorm:"foreignKey:CreatedByID"`

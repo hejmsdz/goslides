@@ -125,6 +125,7 @@ func (s SongsService) CreateSong(input dtos.SongRequest, user *models.User) (*mo
 	song := &models.Song{
 		Title:       input.Title,
 		Subtitle:    sql.NullString{String: input.Subtitle, Valid: input.Subtitle != ""},
+		Author:      sql.NullString{String: input.Author, Valid: input.Author != ""},
 		Lyrics:      strings.Join(input.Lyrics, "\n\n"),
 		CreatedByID: user.ID,
 		UpdatedByID: user.ID,
@@ -168,6 +169,7 @@ func (s SongsService) UpdateSong(id string, input dtos.SongRequest, user *models
 
 	song.Title = input.Title
 	song.Subtitle = sql.NullString{String: input.Subtitle, Valid: input.Subtitle != ""}
+	song.Author = sql.NullString{String: input.Author, Valid: input.Author != ""}
 	song.Lyrics = strings.Join(input.Lyrics, "\n\n")
 	song.UpdatedByID = user.ID
 

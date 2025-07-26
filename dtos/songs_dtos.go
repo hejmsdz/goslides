@@ -63,6 +63,7 @@ func NewPaginatedSongListResponse(songs []models.Song, total int64) PaginatedSon
 
 type SongDetailResponse struct {
 	SongSummaryResponse
+	Author           *string  `json:"author"`
 	OverriddenSongID *string  `json:"overriddenSongId"`
 	Lyrics           []string `json:"lyrics"`
 	CanEdit          bool     `json:"canEdit"`
@@ -77,8 +78,14 @@ func NewSongDetailResponse(song *models.Song, canEdit bool, canDelete bool, canO
 		overriddenSongID = &songID
 	}
 
+	var author *string
+	if song.Author.Valid {
+		author = &song.Author.String
+	}
+
 	return SongDetailResponse{
 		SongSummaryResponse: NewSongSummaryResponse(song),
+		Author:              author,
 		OverriddenSongID:    overriddenSongID,
 		Lyrics:              song.FormatLyrics(models.FormatLyricsOptions{Raw: true}),
 		CanEdit:             canEdit,
@@ -91,6 +98,7 @@ type SongRequest struct {
 	Title        string   `json:"title"`
 	Subtitle     string   `json:"subtitle"`
 	Lyrics       []string `json:"lyrics"`
+	Author       string   `json:"author"`
 	TeamID       string   `json:"teamId"`
 	IsOverride   bool     `json:"isOverride"`
 	IsUnofficial bool     `json:"isUnofficial"`
