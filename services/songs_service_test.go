@@ -2,6 +2,7 @@ package services_test
 
 import (
 	"database/sql"
+	"fmt"
 	"testing"
 
 	"github.com/hejmsdz/goslides/models"
@@ -37,7 +38,7 @@ func createTestData(t *testing.T, tce *tests.TestCaseEnvironment, canAccessUnoff
 	// Create official songs
 	officialSong1 := &models.Song{
 		Title:        "Official Song 1",
-		Subtitle:     sql.NullString{},
+		Subtitle:     sql.NullString{String: "Lorem", Valid: true},
 		Lyrics:       "Verse 1\n\nVerse 2",
 		IsUnofficial: false,
 		CreatedByID:  user.ID,
@@ -48,7 +49,7 @@ func createTestData(t *testing.T, tce *tests.TestCaseEnvironment, canAccessUnoff
 
 	officialSong2 := &models.Song{
 		Title:        "Official Song 2",
-		Subtitle:     sql.NullString{},
+		Subtitle:     sql.NullString{String: "Ipsum", Valid: true},
 		Lyrics:       "Verse 1\n\nVerse 2",
 		IsUnofficial: false,
 		CreatedByID:  user.ID,
@@ -60,7 +61,7 @@ func createTestData(t *testing.T, tce *tests.TestCaseEnvironment, canAccessUnoff
 	// Create unofficial songs
 	unofficialSong1 := &models.Song{
 		Title:        "Unofficial Song 1",
-		Subtitle:     sql.NullString{},
+		Subtitle:     sql.NullString{String: "Dolor", Valid: true},
 		Lyrics:       "Verse 1\n\nVerse 2",
 		IsUnofficial: true,
 		CreatedByID:  user.ID,
@@ -71,7 +72,7 @@ func createTestData(t *testing.T, tce *tests.TestCaseEnvironment, canAccessUnoff
 
 	unofficialSong2 := &models.Song{
 		Title:        "Unofficial Song 2",
-		Subtitle:     sql.NullString{},
+		Subtitle:     sql.NullString{String: "Sit amet", Valid: true},
 		Lyrics:       "Verse 1\n\nVerse 2",
 		IsUnofficial: true,
 		CreatedByID:  user.ID,
@@ -85,6 +86,41 @@ func createTestData(t *testing.T, tce *tests.TestCaseEnvironment, canAccessUnoff
 		Team:  team,
 		Songs: []*models.Song{officialSong1, officialSong2, unofficialSong1, unofficialSong2},
 	}
+}
+
+func TestSearchSongs(t *testing.T) {
+	te := tests.NewTestEnvironment(t)
+
+	testCases := []struct {
+		query       string
+		expectedLen int
+	}{
+		{"", 4},
+		{"song", 4},
+		{"song 1", 2},
+		{"song 2", 2},
+		{"lorem", 1},
+		{"ipsum", 1},
+		{"dolor", 1},
+		{"sit amet", 1},
+		{"song 1|lorem", 1},
+		{"song 2|ipsum", 1},
+		{"song 1|dolor", 1},
+		{"song 2|sit amet", 1},
+		{"nonexistent", 0},
+	}
+
+	te.Run("searches songs by slug", func(t *testing.T, tce *tests.TestCaseEnvironment) {
+		testData := createTestData(t, tce, true)
+
+		for _, tc := range testCases {
+			t.Run(fmt.Sprintf("searching for '%s', expected number of results: %d", tc.query, tc.expectedLen), func(t *testing.T) {
+				songs, err := tce.Container.Songs.FilterSongs(tc.query, testData.User, testData.Team.UUID.String())
+				assert.NoError(t, err)
+				assert.Len(t, songs, tc.expectedLen)
+			})
+		}
+	})
 }
 
 func TestFilterSongsUnofficialFiltering(t *testing.T) {

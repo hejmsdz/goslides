@@ -42,7 +42,7 @@ func (s *Song) BeforeSave(tx *gorm.DB) (err error) {
 		s.UUID = uuid.New()
 	}
 
-	s.Slug = fmt.Sprintf("%s|%s", common.Slugify(s.Title), common.Slugify(s.Subtitle.String))
+	s.Slug = fmt.Sprintf("%s|%s", common.Slugify(s.Title, false), common.Slugify(s.Subtitle.String, false))
 	s.Lyrics = strings.ReplaceAll(s.Lyrics, "\r\n", "\n")
 
 	return nil

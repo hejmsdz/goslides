@@ -42,7 +42,7 @@ func (s SongsService) GetSong(uuidString string, user *models.User) (*models.Son
 }
 
 func (s SongsService) getSongsQuery(query string, teamID uint, includeUnofficial bool) (*gorm.DB, error) {
-	querySlug := common.Slugify(query)
+	querySlug := common.Slugify(query, true)
 
 	db := s.db.Debug().Model(&models.Song{})
 	if teamID == 0 {

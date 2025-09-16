@@ -12,11 +12,16 @@ import (
 )
 
 var nonAlpha = regexp.MustCompile(`[^a-zA-Z0-9\. ]+`)
+var nonAlphaPipe = regexp.MustCompile(`[^a-zA-Z0-9\.\| ]+`)
 
-func Slugify(text string) string {
+func Slugify(text string, allowPipe bool) string {
 	text = strings.ToLower(text)
 	text = unidecode.Unidecode(text)
-	text = nonAlpha.ReplaceAllString(text, "")
+	if allowPipe {
+		text = nonAlphaPipe.ReplaceAllString(text, "")
+	} else {
+		text = nonAlpha.ReplaceAllString(text, "")
+	}
 	text = strings.Trim(text, " ")
 
 	return text
