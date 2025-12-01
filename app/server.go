@@ -7,9 +7,9 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	analytics "github.com/hejmsdz/api-analytics/analytics/go/gin"
 	"github.com/hejmsdz/goslides/di"
 	"github.com/hejmsdz/goslides/routers"
+	analytics "github.com/tom-draper/api-analytics/analytics/go/gin"
 )
 
 func newCorsMiddleware(frontendURL string) gin.HandlerFunc {
@@ -66,6 +66,10 @@ func NewApp(container *di.Container) *gin.Engine {
 
 	r.HEAD("/status", func(c *gin.Context) {
 		c.Status(200)
+	})
+
+	r.GET("/status", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
 	})
 
 	v2 := r.Group("/v2")
