@@ -4,6 +4,7 @@ go 1.23.0
 
 require (
 	github.com/andybalholm/cascadia v1.2.0
+	github.com/gin-contrib/cors v1.7.5
 	github.com/gin-gonic/gin v1.10.0
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/go-github/v41 v41.0.0
@@ -11,6 +12,7 @@ require (
 	github.com/hejmsdz/api-analytics/analytics/go/gin v0.0.0-20250502113658-8559285233d3
 	github.com/pkg/errors v0.9.1
 	github.com/rainycape/unidecode v0.0.0-20150907023854-cb7f23ec59be
+	github.com/redis/go-redis/v9 v9.8.0
 	github.com/signintech/gopdf v0.9.15
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/stretchr/testify v1.10.0
@@ -33,7 +35,6 @@ require (
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
-	github.com/gin-contrib/cors v1.7.5 // indirect
 	github.com/gin-contrib/sse v1.0.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -60,7 +61,6 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/phpdave11/gofpdi v1.0.8 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/redis/go-redis/v9 v9.8.0 // indirect
 	github.com/tom-draper/api-analytics/analytics/go/core v0.0.0-20250423161653-bf0660dc994c // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
