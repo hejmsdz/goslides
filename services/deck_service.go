@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/hejmsdz/goslides/core"
@@ -16,6 +17,22 @@ type DeckService struct {
 
 func NewDeckService(songs *SongsService, liturgy *LiturgyService) *DeckService {
 	return &DeckService{songs: songs, liturgy: liturgy}
+}
+
+func parseColor(color string, defaultColor core.Color) core.Color {
+	if color == "" {
+		return defaultColor
+	}
+
+	r, err1 := strconv.ParseUint(color[1:3], 16, 8)
+	g, err2 := strconv.ParseUint(color[3:5], 16, 8)
+	b, err3 := strconv.ParseUint(color[5:7], 16, 8)
+
+	if err1 != nil || err2 != nil || err3 != nil {
+		return defaultColor
+	}
+
+	return core.Color{R: uint8(r), G: uint8(g), B: uint8(b)}
 }
 
 func (s *DeckService) GetPageConfig(d dtos.DeckRequest) core.PageConfig {
@@ -34,14 +51,16 @@ func (s *DeckService) GetPageConfig(d dtos.DeckRequest) core.PageConfig {
 	pageWidth := pageHeight * ratio
 
 	return core.PageConfig{
-		PageWidth:     pageWidth,
-		PageHeight:    pageHeight,
-		Margin:        8,
-		FontSize:      fontSize,
-		HintFontSize:  fontSize * 2 / 3,
-		LineSpacing:   1.3,
-		Font:          "./fonts/source-sans-pro.ttf",
-		VerticalAlign: d.VerticalAlign,
+		PageWidth:       pageWidth,
+		PageHeight:      pageHeight,
+		Margin:          8,
+		FontSize:        fontSize,
+		HintFontSize:    fontSize * 2 / 3,
+		LineSpacing:     1.3,
+		Font:            "./fonts/source-sans-pro.ttf",
+		VerticalAlign:   d.VerticalAlign,
+		TextColor:       parseColor(d.TextColor, core.Color{R: 255, G: 255, B: 255}),
+		BackgroundColor: parseColor(d.BackgroundColor, core.Color{R: 0, G: 0, B: 0}),
 	}
 }
 

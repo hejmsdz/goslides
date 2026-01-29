@@ -9,14 +9,16 @@ import (
 )
 
 type DeckRequest struct {
-	Date          string     `json:"date"`
-	Items         []DeckItem `json:"items"`
-	Hints         bool       `json:"hints"`
-	Ratio         string     `json:"ratio"`
-	FontSize      int        `json:"fontSize"`
-	VerticalAlign string     `json:"verticalAlign"`
-	Format        string     `json:"format"`
-	Contents      bool       `json:"contents"`
+	Date            string     `json:"date"`
+	Items           []DeckItem `json:"items"`
+	Hints           bool       `json:"hints"`
+	Ratio           string     `json:"ratio"`
+	FontSize        int        `json:"fontSize"`
+	VerticalAlign   string     `json:"verticalAlign"`
+	TextColor       string     `json:"textColor"`
+	BackgroundColor string     `json:"backgroundColor"`
+	Format          string     `json:"format"`
+	Contents        bool       `json:"contents"`
 }
 
 type DeckItem struct {
@@ -39,6 +41,7 @@ func NewDeckResponse(url string, contents []core.ContentSlide) DeckResponse {
 }
 
 var dateRegexp = regexp.MustCompile(`^20\d\d-[0-1]\d-[0-3]\d$`)
+var colorRegexp = regexp.MustCompile(`^#([0-9a-fA-F]{6})$`)
 
 func (d DeckRequest) Validate() error {
 	if !dateRegexp.MatchString(d.Date) {
@@ -71,6 +74,14 @@ func (d DeckRequest) Validate() error {
 
 	if d.VerticalAlign != "" && d.VerticalAlign != "top" && d.VerticalAlign != "bottom" && d.VerticalAlign != "center" {
 		return errors.New("unsupported vertical align")
+	}
+
+	if d.TextColor != "" && !colorRegexp.MatchString(d.TextColor) {
+		return errors.New("invalid text color")
+	}
+
+	if d.BackgroundColor != "" && !colorRegexp.MatchString(d.BackgroundColor) {
+		return errors.New("invalid background color")
 	}
 
 	for _, item := range d.Items {

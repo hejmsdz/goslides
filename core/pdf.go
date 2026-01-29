@@ -7,15 +7,23 @@ import (
 	"github.com/skip2/go-qrcode"
 )
 
+type Color struct {
+	R uint8
+	G uint8
+	B uint8
+}
+
 type PageConfig struct {
-	PageWidth     float64
-	PageHeight    float64
-	Margin        float64
-	FontSize      int
-	HintFontSize  int
-	LineSpacing   float64
-	Font          string
-	VerticalAlign string
+	PageWidth       float64
+	PageHeight      float64
+	Margin          float64
+	FontSize        int
+	HintFontSize    int
+	LineSpacing     float64
+	Font            string
+	VerticalAlign   string
+	TextColor       Color
+	BackgroundColor Color
 }
 
 type ContentSlide struct {
@@ -59,8 +67,9 @@ func (pdf *PdfSlides) Initialize(pageConfig PageConfig) error {
 func (pdf *PdfSlides) addPage() {
 	pdf.goPdf.AddPage()
 
-	pdf.goPdf.SetFillColor(0, 0, 0)
-	pdf.goPdf.RectFromUpperLeftWithStyle(0, 0, pdf.pageConfig.PageWidth, pdf.pageConfig.PageHeight, "FD")
+	bgColor := pdf.pageConfig.BackgroundColor
+	pdf.goPdf.SetFillColor(bgColor.R, bgColor.G, bgColor.B)
+	pdf.goPdf.RectFromUpperLeftWithStyle(0, 0, pdf.pageConfig.PageWidth, pdf.pageConfig.PageHeight, "F")
 }
 
 func (pdf *PdfSlides) writeCenteredLine(text string) error {
@@ -71,7 +80,10 @@ func (pdf *PdfSlides) writeCenteredLine(text string) error {
 	}
 
 	pdf.goPdf.SetX((pdf.pageConfig.PageWidth - textWidth) / 2)
-	pdf.goPdf.SetFillColor(255, 255, 255)
+
+	textColor := pdf.pageConfig.TextColor
+	pdf.goPdf.SetFillColor(textColor.R, textColor.G, textColor.B)
+
 	return pdf.goPdf.Cell(nil, text)
 }
 
