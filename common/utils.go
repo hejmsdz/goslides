@@ -3,6 +3,7 @@ package common
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -42,4 +43,15 @@ func GetFrontendURL(path string) string {
 
 func GetPublicURL(fileName string) string {
 	return fmt.Sprintf("%s/%s", os.Getenv("PUBLIC_URL"), fileName)
+}
+
+func StructToMap(v any) (map[string]interface{}, error) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+
+	var m map[string]interface{}
+	err = json.Unmarshal(b, &m)
+	return m, err
 }

@@ -42,13 +42,20 @@ func NewLiveSessionResponse(id string, token string) LiveSessionResponse {
 }
 
 type LiveSessionStatusResponse struct {
-	URL         string `json:"url"`
-	CurrentPage int    `json:"currentPage"`
+	URL             string `json:"url"`
+	CurrentPage     int    `json:"currentPage"`
+	BackgroundColor string `json:"backgroundColor"`
 }
 
 func NewLiveSessionStatusResponse(session *models.LiveSession) LiveSessionStatusResponse {
+	backgroundColor := session.BackgroundColor
+	if backgroundColor == "" {
+		backgroundColor = "#000000"
+	}
+
 	return LiveSessionStatusResponse{
-		URL:         session.URL,
-		CurrentPage: session.CurrentPage,
+		URL:             session.URL,
+		CurrentPage:     session.CurrentPage,
+		BackgroundColor: backgroundColor,
 	}
 }

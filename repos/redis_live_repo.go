@@ -123,11 +123,12 @@ func (r *RedisLiveRepo) CleanUp(minUpdatedAt time.Time) ([]string, error) {
 
 func (r *RedisLiveRepo) toHash(session *models.LiveSession) map[string]string {
 	return map[string]string{
-		"url":         session.URL,
-		"currentPage": strconv.Itoa(session.CurrentPage),
-		"token":       session.Token,
-		"fileName":    session.FileName,
-		"updatedAt":   strconv.FormatInt(session.UpdatedAt.Unix(), 10),
+		"url":             session.URL,
+		"currentPage":     strconv.Itoa(session.CurrentPage),
+		"token":           session.Token,
+		"fileName":        session.FileName,
+		"updatedAt":       strconv.FormatInt(session.UpdatedAt.Unix(), 10),
+		"backgroundColor": session.BackgroundColor,
 	}
 }
 
@@ -152,11 +153,12 @@ func (r *RedisLiveRepo) fromHash(hash map[string]string) (*models.LiveSession, e
 	}
 
 	return &models.LiveSession{
-		URL:         hash["url"],
-		CurrentPage: currentPage,
-		Token:       hash["token"],
-		FileName:    hash["fileName"],
-		UpdatedAt:   time.Unix(updatedAt, 0),
+		URL:             hash["url"],
+		CurrentPage:     currentPage,
+		Token:           hash["token"],
+		FileName:        hash["fileName"],
+		UpdatedAt:       time.Unix(updatedAt, 0),
+		BackgroundColor: hash["backgroundColor"],
 	}, nil
 }
 

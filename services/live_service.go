@@ -95,11 +95,12 @@ func (l *LiveService) CreateSession(input dtos.LiveSessionRequest, user *models.
 	}
 
 	session := &models.LiveSession{
-		URL:         common.GetPublicURL(fileName),
-		CurrentPage: input.CurrentPage,
-		Token:       token,
-		FileName:    fileName,
-		UpdatedAt:   time.Now(),
+		URL:             common.GetPublicURL(fileName),
+		BackgroundColor: input.Deck.BackgroundColor,
+		CurrentPage:     input.CurrentPage,
+		Token:           token,
+		FileName:        fileName,
+		UpdatedAt:       time.Now(),
 	}
 
 	key, err := l.repo.CreateSession(session)
@@ -146,6 +147,7 @@ func (l *LiveService) UpdateSession(key string, input dtos.LiveSessionRequest, u
 
 	session.FileName = fileName
 	session.URL = common.GetPublicURL(fileName)
+	session.BackgroundColor = input.Deck.BackgroundColor
 	session.CurrentPage = input.CurrentPage
 	session.UpdatedAt = time.Now()
 
@@ -154,12 +156,14 @@ func (l *LiveService) UpdateSession(key string, input dtos.LiveSessionRequest, u
 		return err
 	}
 
+	data, err := common.StructToMap(dtos.NewLiveSessionStatusResponse(session))
+	if err != nil {
+		return err
+	}
+
 	l.repo.PublishEvent(key, &dtos.Event{
 		Type: "start",
-		Data: dtos.JsonObject{
-			"url":         session.URL,
-			"currentPage": session.CurrentPage,
-		},
+		Data: data,
 	})
 
 	return nil
