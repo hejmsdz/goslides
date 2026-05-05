@@ -1,9 +1,9 @@
-FROM golang:1.24 AS builder
+FROM golang:1.26 AS builder
 WORKDIR /app
 ENV CGO_ENABLED=0
 
 COPY go.mod go.sum ./
-RUN go mod graph | awk '{if ($1 !~ "@") print $2}' | xargs go get
+RUN go mod download
 
 COPY . ./
 RUN go build -v -o server
