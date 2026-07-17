@@ -16,7 +16,7 @@ require (
 	github.com/signintech/gopdf v0.9.15
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/net v0.54.0
+	golang.org/x/net v0.55.0
 	google.golang.org/api v0.224.0
 	gorm.io/driver/postgres v1.5.11
 	gorm.io/gorm v1.25.12
