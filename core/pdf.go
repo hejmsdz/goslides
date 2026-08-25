@@ -20,7 +20,8 @@ type PageConfig struct {
 	FontSize        int
 	HintFontSize    int
 	LineSpacing     float64
-	Font            string
+	DefaultFont     string
+	ItalicFont      string
 	VerticalAlign   string
 	TextColor       Color
 	BackgroundColor Color
@@ -43,6 +44,9 @@ type PdfSlides struct {
 const HintStartTag = "<hint>"
 const HintEndTag = "</hint>"
 
+const ItalicStartTag = "_"
+const ItalicEndTag = "_"
+
 func (pdf *PdfSlides) Initialize(pageConfig PageConfig) error {
 	pdf.pageConfig = pageConfig
 	pdf.goPdf = &gopdf.GoPdf{}
@@ -54,9 +58,16 @@ func (pdf *PdfSlides) Initialize(pageConfig PageConfig) error {
 
 	pdf.goPdf.Start(gopdf.Config{PageSize: pageSize})
 
-	err := pdf.goPdf.AddTTFFont("default", pageConfig.Font)
+	err := pdf.goPdf.AddTTFFont("default", pageConfig.DefaultFont)
 	if err != nil {
 		return err
+	}
+
+	if pageConfig.ItalicFont != "" {
+		err = pdf.goPdf.AddTTFFont("italic", pageConfig.ItalicFont)
+		if err != nil {
+			return err
+		}
 	}
 
 	pdf.addPage()
@@ -72,8 +83,8 @@ func (pdf *PdfSlides) addPage() {
 	pdf.goPdf.RectFromUpperLeftWithStyle(0, 0, pdf.pageConfig.PageWidth, pdf.pageConfig.PageHeight, "F")
 }
 
-func (pdf *PdfSlides) writeCenteredLine(text string) error {
-	pdf.goPdf.SetFont("default", "", pdf.pageConfig.FontSize)
+func (pdf *PdfSlides) writeCenteredLine(text string, font string) error {
+	pdf.goPdf.SetFont(font, "", pdf.pageConfig.FontSize)
 	textWidth, err := pdf.goPdf.MeasureTextWidth(text)
 	if err != nil {
 		return err
@@ -130,7 +141,15 @@ func (pdf *PdfSlides) writeParagraph(lines []string, y0 float64) error {
 	for index, line := range lines {
 		y := y0 + float64(index)*pdf.lineHeight + offset
 		pdf.goPdf.SetY(y)
-		err := pdf.writeCenteredLine(line)
+
+		font := "default"
+		if strings.HasPrefix(line, ItalicStartTag) && strings.HasSuffix(line, ItalicEndTag) {
+			font = "italic"
+			line, _ = strings.CutPrefix(line, ItalicStartTag)
+			line, _ = strings.CutSuffix(line, ItalicEndTag)
+		}
+
+		err := pdf.writeCenteredLine(line, font)
 		if err != nil {
 			return err
 		}
@@ -163,7 +182,7 @@ func (pdf *PdfSlides) drawQrCode(content string) {
 	rect := &gopdf.Rect{W: float64(qrSize), H: float64(qrSize)}
 	pdf.goPdf.ImageByHolder(imageHolder, x, y, rect)
 	pdf.goPdf.SetY(pdf.pageConfig.PageHeight - y + (y-float64(pdf.pageConfig.FontSize))/2)
-	pdf.writeCenteredLine(content)
+	pdf.writeCenteredLine(content, "default")
 }
 
 func BuildPDF(textDeck [][]string, pageConfig PageConfig) (*gopdf.GoPdf, []ContentSlide, error) {
